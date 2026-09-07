@@ -32,3 +32,6 @@ dist-ssr
 "vercel.json" 
 "supabase/.temp/" 
 "*.log" 
+
+# Local Netlify folder
+.netlify
