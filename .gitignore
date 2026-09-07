@@ -26,3 +26,9 @@ dist-ssr
 
 
 .vercel
+"" 
+"# Temporary files" 
+"get-*.html" 
+"vercel.json" 
+"supabase/.temp/" 
+"*.log" 
