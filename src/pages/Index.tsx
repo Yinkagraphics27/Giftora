@@ -2,11 +2,12 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Hero } from "@/components/home/Hero";
 import { Categories } from "@/components/home/Categories";
-import { FeaturedCollections } from "@/components/home/FeaturedCollections";
-import { WhyGiftora } from "@/components/home/WhyGiftora";
 import { FeaturedVendors } from "@/components/home/FeaturedVendors";
-import { CTA } from "@/components/home/CTA";
+import { FeaturedCollections } from "@/components/home/FeaturedCollections";
+import { HowItWorks } from "@/components/home/HowItWorks";
+import { WhyGiftora } from "@/components/home/WhyGiftora";
 import { B2BSection } from "@/components/home/B2BSection";
+import { CTA } from "@/components/home/CTA";
 
 const Index = () => {
   return (
@@ -15,11 +16,12 @@ const Index = () => {
       <main className="flex-1">
         <Hero />
         <Categories />
-        <FeaturedCollections />
-        <WhyGiftora />
         <FeaturedVendors />
-        <CTA />
+        <FeaturedCollections />
+        <HowItWorks />
+        <WhyGiftora />
         <B2BSection />
+        <CTA />
       </main>
       <Footer />
     </div>

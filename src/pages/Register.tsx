@@ -6,7 +6,7 @@ export default function RegisterPage() {
 
   useEffect(() => {
     // Redirect to vendor auth - the real registration flow
-    navigate("/vendor/auth", { replace: true });
+    navigate("/signup", { replace: true });
   }, [navigate]);
 
   return (

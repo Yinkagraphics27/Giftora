@@ -1,56 +1,17 @@
 import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { MapPin, Star, ArrowRight } from "lucide-react";
+import { MapPin, ArrowRight, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import giftBox from "@/assets/gift-box-1.jpg";
-import hamper from "@/assets/hamper-1.jpg";
-import corporate from "@/assets/corporate-gift-1.jpg";
-import customGift from "@/assets/custom-gift-1.jpg";
-import ChatWidget from "@/components/chat/ChatWidget";
+import { supabase } from "@/integrations/supabase/client";
 
-// Demo vendors (in production, these would come from the public_vendor_profiles view)
-const vendors = [
-  {
-    id: "demo-1",
-    name: "Lagos Gift Co.",
-    location: "Lagos, Nigeria",
-    rating: 4.9,
-    reviews: 127,
-    priceRange: "₦15,000 - ₦150,000",
-    image: giftBox,
-    category: "Gift Boxes",
-  },
-  {
-    id: "demo-2",
-    name: "Dubai Luxury Hampers",
-    location: "Dubai, UAE",
-    rating: 4.8,
-    reviews: 94,
-    priceRange: "AED 200 - AED 2,000",
-    image: hamper,
-    category: "Hampers",
-  },
-  {
-    id: "demo-3",
-    name: "London Corporate Gifts",
-    location: "London, UK",
-    rating: 4.7,
-    reviews: 156,
-    priceRange: "£50 - £500",
-    image: corporate,
-    category: "Corporate Gifts",
-  },
-  {
-    id: "demo-4",
-    name: "Personalized NYC",
-    location: "New York, US",
-    rating: 4.9,
-    reviews: 203,
-    priceRange: "$30 - $300",
-    image: customGift,
-    category: "Customized",
-  },
-];
+interface Vendor {
+  id: string;
+  business_name: string;
+  city: string | null;
+  country: string | null;
+  logo_url: string | null;
+}
 
 const container = {
   hidden: { opacity: 0 },
@@ -66,11 +27,30 @@ const item = {
 };
 
 export function FeaturedVendors() {
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchVendors = async () => {
+      const { data, error } = await supabase
+        .from("vendor_profiles")
+        .select("id, business_name, city, country, logo_url")
+        .eq("is_verified", true)
+        .limit(4);
+
+      if (!error) setVendors(data || []);
+      setIsLoading(false);
+    };
+    fetchVendors();
+  }, []);
+
+  if (!isLoading && vendors.length === 0) {
+    return null;
+  }
 
   return (
     <section className="bg-secondary/30 py-16 md:py-24">
       <div className="container">
-        {/* Header */}
         <div className="mb-12 flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
           <div>
             <motion.span
@@ -79,7 +59,7 @@ export function FeaturedVendors() {
               viewport={{ once: true }}
               className="text-sm font-medium uppercase tracking-wider text-primary"
             >
-              Top Rated
+              Featured
             </motion.span>
             <motion.h2
               initial={{ opacity: 0, y: 10 }}
@@ -106,7 +86,6 @@ export function FeaturedVendors() {
           </motion.div>
         </div>
 
-        {/* Vendors Grid */}
         <motion.div
           variants={container}
           initial="hidden"
@@ -115,59 +94,35 @@ export function FeaturedVendors() {
           className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4"
         >
           {vendors.map((vendor) => (
-            <motion.div
-              key={vendor.id}
-              variants={item}
-              className="group overflow-hidden rounded-2xl border border-border bg-card shadow-soft transition-all duration-300 hover:shadow-medium"
-            >
-              {/* Image */}
-              <div className="relative aspect-[4/3] overflow-hidden">
-                <img
-                  src={vendor.image}
-                  alt={vendor.name}
-                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                />
-                <div className="absolute left-3 top-3">
-                  <span className="rounded-full bg-background/90 px-3 py-1 text-xs font-medium text-foreground backdrop-blur-sm">
-                    {vendor.category}
-                  </span>
-                </div>
-              </div>
-
-              {/* Content */}
-              <div className="p-5">
-                <h3 className="font-heading text-lg font-semibold text-foreground">
-                  {vendor.name}
-                </h3>
-
-                <div className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
-                  <MapPin className="h-4 w-4" />
-                  {vendor.location}
-                </div>
-
-                <div className="mt-3 flex items-center gap-2">
-                  <div className="flex items-center gap-1">
-                    <Star className="h-4 w-4 fill-primary text-primary" />
-                    <span className="text-sm font-medium text-foreground">
-                      {vendor.rating}
-                    </span>
+            <motion.div key={vendor.id} variants={item}>
+              <Link to={`/vendors/${vendor.id}`}>
+                <div className="group overflow-hidden rounded-2xl border border-border bg-card shadow-soft transition-all duration-300 hover:shadow-medium">
+                  <div className="relative aspect-[4/3] overflow-hidden bg-muted flex items-center justify-center">
+                    {vendor.logo_url ? (
+                      <img
+                        src={vendor.logo_url}
+                        alt={vendor.business_name}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    ) : (
+                      <Store className="h-10 w-10 text-muted-foreground/40" />
+                    )}
                   </div>
-                  <span className="text-sm text-muted-foreground">
-                    ({vendor.reviews} reviews)
-                  </span>
-                </div>
 
-                <p className="mt-3 text-sm font-medium text-primary">
-                  {vendor.priceRange}
-                </p>
+                  <div className="p-5">
+                    <h3 className="font-heading text-lg font-semibold text-foreground group-hover:text-primary transition-colors">
+                      {vendor.business_name}
+                    </h3>
 
-                <div className="mt-4">
-                  <ChatWidget
-                    vendorId={vendor.id}
-                    vendorName={vendor.name}
-                  />
+                    {(vendor.city || vendor.country) && (
+                      <div className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
+                        <MapPin className="h-4 w-4" />
+                        {[vendor.city, vendor.country].filter(Boolean).join(", ")}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              </Link>
             </motion.div>
           ))}
         </motion.div>

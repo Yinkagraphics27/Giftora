@@ -1,16 +1,61 @@
 import { useParams, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
-import { MapPin, BadgeCheck, ArrowLeft, MessageCircle, Package, Star } from "lucide-react";
-import { getVendorById } from "@/data/demoVendors";
-import { openWhatsAppChat } from "@/utils/whatsapp";
+import { MapPin, BadgeCheck, ArrowLeft, MessageCircle, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+
+interface Vendor {
+  id: string;
+  business_name: string;
+  city: string | null;
+  country: string | null;
+  description: string | null;
+  logo_url: string | null;
+  whatsapp: string | null;
+  is_verified: boolean;
+}
 
 export default function VendorProfile() {
   const { id } = useParams<{ id: string }>();
-  const vendor = id ? getVendorById(id) : undefined;
+  const [vendor, setVendor] = useState<Vendor | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (id) fetchVendor(id);
+  }, [id]);
+
+  const fetchVendor = async (vendorId: string) => {
+    setIsLoading(true);
+    const { data, error } = await supabase
+      .from("vendor_profiles")
+      .select("id, business_name, city, country, description, logo_url, whatsapp, is_verified")
+      .eq("id", vendorId)
+      .single();
+
+    if (error) {
+      console.error("Error fetching vendor:", error);
+      setVendor(null);
+    } else {
+      setVendor(data);
+    }
+    setIsLoading(false);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen flex-col">
+        <Header />
+        <main className="flex flex-1 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   if (!vendor) {
     return (
@@ -18,9 +63,7 @@ export default function VendorProfile() {
         <Header />
         <main className="flex-1">
           <div className="container py-16 text-center">
-            <h1 className="text-2xl font-bold text-foreground mb-4">
-              Vendor Not Found
-            </h1>
+            <h1 className="text-2xl font-bold text-foreground mb-4">Vendor Not Found</h1>
             <p className="text-muted-foreground mb-8">
               This vendor profile doesn't exist or is no longer available.
             </p>
@@ -41,7 +84,6 @@ export default function VendorProfile() {
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="flex-1">
-        {/* Back Button */}
         <div className="container pt-6">
           <Link
             to="/vendors"
@@ -52,18 +94,15 @@ export default function VendorProfile() {
           </Link>
         </div>
 
-        {/* Vendor Profile */}
         <section className="py-8">
           <div className="container">
             <div className="grid gap-8 lg:grid-cols-3">
-              {/* Main Content */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="lg:col-span-2 space-y-6"
               >
-                {/* Logo/Image */}
-                <div className="aspect-[16/9] overflow-hidden rounded-2xl bg-secondary/30">
+                <div className="aspect-[16/9] overflow-hidden rounded-2xl bg-secondary/30 flex items-center justify-center">
                   {vendor.logo_url ? (
                     <img
                       src={vendor.logo_url}
@@ -71,15 +110,12 @@ export default function VendorProfile() {
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <div className="flex h-full items-center justify-center">
-                      <span className="text-6xl font-bold text-muted-foreground/30">
-                        {vendor.business_name.charAt(0)}
-                      </span>
-                    </div>
+                    <span className="text-6xl font-bold text-muted-foreground/30">
+                      {vendor.business_name.charAt(0)}
+                    </span>
                   )}
                 </div>
 
-                {/* Vendor Info */}
                 <div>
                   <div className="flex flex-wrap items-center gap-3">
                     <h1 className="font-heading text-2xl font-bold text-foreground md:text-3xl">
@@ -91,58 +127,24 @@ export default function VendorProfile() {
                         Verified
                       </Badge>
                     )}
-                    {vendor.is_launch_partner && (
-                      <Badge className="bg-primary/10 text-primary hover:bg-primary/20">
-                        Launch Partner
-                      </Badge>
-                    )}
                   </div>
 
-                  <div className="mt-3 flex flex-wrap items-center gap-4">
-                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                  {(vendor.city || vendor.country) && (
+                    <div className="mt-3 flex items-center gap-1.5 text-muted-foreground">
                       <MapPin className="h-4 w-4" />
-                      <span>{vendor.city}, {vendor.country}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Star className="h-4 w-4 fill-primary text-primary" />
-                      <span className="text-sm font-medium text-foreground">
-                        {vendor.rating}
-                      </span>
-                      <span className="text-sm text-muted-foreground">
-                        ({vendor.reviews} reviews)
-                      </span>
-                    </div>
-                    {vendor.vendor_type && (
-                      <Badge 
-                        variant={vendor.vendor_type === "wholesaler" ? "default" : "secondary"}
-                        className="capitalize"
-                      >
-                        {vendor.vendor_type === "wholesaler" ? "Gift Producer / Wholesaler" : "Gift Curator"}
-                      </Badge>
-                    )}
-                  </div>
-
-                  {/* Wholesale Indicator */}
-                  {vendor.vendor_type === "wholesaler" && (
-                    <div className="mt-4 flex items-center gap-2 rounded-lg bg-primary/10 p-3 text-sm text-primary">
-                      <Package className="h-5 w-5 flex-shrink-0" />
-                      <span className="font-medium">Wholesale available for business buyers</span>
+                      <span>{[vendor.city, vendor.country].filter(Boolean).join(", ")}</span>
                     </div>
                   )}
                 </div>
 
-                {/* Description */}
                 {vendor.description && (
                   <div className="prose prose-sm max-w-none text-muted-foreground">
-                    <h2 className="text-lg font-semibold text-foreground mb-2">
-                      About
-                    </h2>
+                    <h2 className="text-lg font-semibold text-foreground mb-2">About</h2>
                     <p>{vendor.description}</p>
                   </div>
                 )}
               </motion.div>
 
-              {/* Contact Sidebar */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -155,14 +157,17 @@ export default function VendorProfile() {
                   <p className="text-sm text-muted-foreground mb-6">
                     Chat directly with {vendor.business_name} on WhatsApp for inquiries and orders.
                   </p>
-                  
+
                   {vendor.whatsapp ? (
-                    <Button 
-                      className="w-full bg-green-600 hover:bg-green-700" 
+                    <Button
+                      className="w-full bg-green-600 hover:bg-green-700"
                       size="lg"
                       onClick={() => {
-                        const message = `Hi ${vendor.business_name}! 👋\n\nI found your business on Giftora and I'm interested in learning more about your products and services.\n\nThank you!`;
-                        openWhatsAppChat(vendor.whatsapp, message);
+                        const cleanNumber = vendor.whatsapp!.replace(/[^\d]/g, "");
+                        const message = encodeURIComponent(
+                          `Hi ${vendor.business_name}! I found your business on Giftora and I'm interested in learning more about your products.`
+                        );
+                        window.open(`https://wa.me/${cleanNumber}?text=${message}`, "_blank", "noopener,noreferrer");
                       }}
                     >
                       <MessageCircle className="mr-2 h-5 w-5" />
@@ -174,10 +179,6 @@ export default function VendorProfile() {
                       Contact Not Available
                     </Button>
                   )}
-
-                  <p className="mt-4 text-xs text-muted-foreground text-center">
-                    You'll be redirected to WhatsApp to chat with this vendor
-                  </p>
                 </div>
               </motion.div>
             </div>

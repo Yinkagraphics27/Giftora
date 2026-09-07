@@ -1,20 +1,21 @@
 import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, Cake, Building2, Heart, Crown, Palette } from "lucide-react";
+import { ArrowRight, Gift, Building2, Heart, Sparkles, Palette } from "lucide-react";
 import giftBox from "@/assets/gift-box-1.jpg";
 import hamper from "@/assets/hamper-1.jpg";
 import souvenir from "@/assets/souvenir-1.jpg";
 import corporate from "@/assets/corporate-gift-1.jpg";
 import customGift from "@/assets/custom-gift-1.jpg";
+import { supabase } from "@/integrations/supabase/client";
 
-const collections = [
+const COLLECTIONS_META = [
   {
-    id: "birthday",
-    name: "Birthday Gift Boxes",
-    description: "Celebrate special moments with curated birthday surprises",
+    id: "gift-boxes",
+    name: "Gift Boxes",
+    description: "Beautifully curated boxes for every occasion",
     image: giftBox,
-    icon: Cake,
-    itemCount: 85,
+    icon: Gift,
   },
   {
     id: "corporate",
@@ -22,31 +23,27 @@ const collections = [
     description: "Impress clients and partners with premium business gifts",
     image: hamper,
     icon: Building2,
-    itemCount: 64,
   },
   {
-    id: "wedding",
+    id: "souvenirs",
     name: "Wedding & Event Souvenirs",
     description: "Memorable keepsakes for your special celebrations",
     image: souvenir,
     icon: Heart,
-    itemCount: 112,
   },
   {
-    id: "premium-trunks",
-    name: "Premium Gift Trunks",
-    description: "Luxury trunk presentations for grand gestures",
+    id: "hampers",
+    name: "Premium Hampers",
+    description: "Luxury hamper presentations for grand gestures",
     image: corporate,
-    icon: Crown,
-    itemCount: 42,
+    icon: Sparkles,
   },
   {
-    id: "custom-accessories",
+    id: "custom",
     name: "Custom Gift Accessories",
     description: "Personalized finishing touches for any gift",
     image: customGift,
     icon: Palette,
-    itemCount: 78,
   },
 ];
 
@@ -64,13 +61,37 @@ const item = {
 };
 
 export function FeaturedCollections() {
+  const [counts, setCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const fetchCounts = async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("category")
+        .eq("is_active", true);
+
+      if (!error && data) {
+        const tally: Record<string, number> = {};
+        data.forEach((p) => {
+          tally[p.category] = (tally[p.category] || 0) + 1;
+        });
+        setCounts(tally);
+      }
+    };
+    fetchCounts();
+  }, []);
+
+  const collections = COLLECTIONS_META.map((c) => ({
+    ...c,
+    itemCount: counts[c.id] || 0,
+  }));
+
   const featuredCollection = collections[0];
   const FeaturedIcon = featuredCollection.icon;
 
   return (
     <section className="bg-secondary/30 py-16 md:py-24">
       <div className="container">
-        {/* Header */}
         <div className="mb-12 text-center">
           <motion.span
             initial={{ opacity: 0, y: 10 }}
@@ -96,11 +117,10 @@ export function FeaturedCollections() {
             transition={{ delay: 0.2 }}
             className="mx-auto mt-4 max-w-2xl text-muted-foreground"
           >
-            Explore our handpicked collections for every occasion and recipient.
+            Explore our collections for every occasion and recipient.
           </motion.p>
         </div>
 
-        {/* Collections Grid */}
         <motion.div
           variants={container}
           initial="hidden"
@@ -108,10 +128,9 @@ export function FeaturedCollections() {
           viewport={{ once: true }}
           className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
         >
-          {/* Featured large card */}
           <motion.div variants={item} className="group md:col-span-2 lg:col-span-1 lg:row-span-2">
             <Link
-              to={`/vendors?collection=${featuredCollection.id}`}
+              to={`/browse?category=${featuredCollection.id}`}
               className="relative block h-full min-h-[300px] overflow-hidden rounded-2xl shadow-soft transition-all duration-300 hover:shadow-medium lg:min-h-full"
             >
               <img
@@ -125,7 +144,7 @@ export function FeaturedCollections() {
                   <FeaturedIcon className="h-5 w-5 text-primary-foreground" />
                 </div>
                 <span className="mb-2 inline-block rounded-full bg-background/20 px-3 py-1 text-xs font-medium text-cream backdrop-blur-sm">
-                  {featuredCollection.itemCount}+ items
+                  {featuredCollection.itemCount} item{featuredCollection.itemCount !== 1 ? "s" : ""}
                 </span>
                 <h3 className="font-heading text-xl font-bold text-cream md:text-2xl">
                   {featuredCollection.name}
@@ -137,13 +156,12 @@ export function FeaturedCollections() {
             </Link>
           </motion.div>
 
-          {/* Other collections */}
           {collections.slice(1).map((collection) => {
             const CollectionIcon = collection.icon;
             return (
               <motion.div key={collection.id} variants={item} className="group">
                 <Link
-                  to={`/vendors?collection=${collection.id}`}
+                  to={`/browse?category=${collection.id}`}
                   className="relative block aspect-[16/10] overflow-hidden rounded-2xl shadow-soft transition-all duration-300 hover:shadow-medium"
                 >
                   <img
@@ -157,7 +175,7 @@ export function FeaturedCollections() {
                       <CollectionIcon className="h-4 w-4 text-primary-foreground" />
                     </div>
                     <span className="mb-1 inline-block rounded-full bg-background/20 px-2 py-0.5 text-xs font-medium text-cream backdrop-blur-sm">
-                      {collection.itemCount}+ items
+                      {collection.itemCount} item{collection.itemCount !== 1 ? "s" : ""}
                     </span>
                     <h3 className="font-heading text-lg font-bold text-cream">
                       {collection.name}
@@ -172,7 +190,6 @@ export function FeaturedCollections() {
           })}
         </motion.div>
 
-        {/* View All Link */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -181,7 +198,7 @@ export function FeaturedCollections() {
           className="mt-10 text-center"
         >
           <Link
-            to="/vendors"
+            to="/browse"
             className="inline-flex items-center gap-2 font-medium text-primary transition-colors hover:text-primary/80"
           >
             View All Collections
