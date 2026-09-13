@@ -14,8 +14,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 15%;
 
-    --primary: 38 55% 45%;
-    --primary-foreground: 40 33% 98%;
+    --primary: 23 80% 55%;
+    --primary-foreground: 0 0% 100%;
 
     --secondary: 30 20% 94%;
     --secondary-foreground: 240 10% 15%;
@@ -23,21 +23,21 @@
     --muted: 30 20% 94%;
     --muted-foreground: 240 5% 45%;
 
-    --accent: 38 55% 92%;
-    --accent-foreground: 38 55% 25%;
+    --accent: 23 80% 94%;
+    --accent-foreground: 23 75% 30%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
 
     --border: 30 15% 88%;
     --input: 30 15% 88%;
-    --ring: 38 55% 45%;
+    --ring: 23 80% 55%;
 
     --radius: 0.75rem;
 
-    --gold: 38 55% 45%;
-    --gold-light: 38 65% 60%;
-    --gold-dark: 38 55% 35%;
+    --gold: 23 80% 55%;
+    --gold-light: 23 85% 68%;
+    --gold-dark: 23 75% 42%;
 
     --cream: 40 33% 98%;
     --cream-dark: 40 25% 92%;
@@ -52,12 +52,12 @@
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 240 10% 15%;
-    --sidebar-primary: 38 55% 45%;
+    --sidebar-primary: 23 80% 55%;
     --sidebar-primary-foreground: 40 33% 98%;
-    --sidebar-accent: 38 55% 92%;
-    --sidebar-accent-foreground: 38 55% 25%;
+    --sidebar-accent: 23 80% 94%;
+    --sidebar-accent-foreground: 23 75% 30%;
     --sidebar-border: 30 15% 88%;
-    --sidebar-ring: 38 55% 45%;
+    --sidebar-ring: 23 80% 55%;
   }
 }
 
@@ -98,13 +98,13 @@ body {
 
 .auth-container input:focus {
   outline: none;
-  border-color: #4CAF50;
+  border-color: #E8752F;
 }
 
 .auth-container button[type="submit"] {
   width: 100%;
   padding: 14px;
-  background: #4CAF50;
+  background: #E8752F;
   color: white;
   border: none;
   border-radius: 8px;
@@ -116,18 +116,18 @@ body {
 }
 
 .auth-container button[type="submit"]:hover {
-  background: #43A047;
+  background: #D4671F;
 }
 
 .auth-container button[type="submit"]:disabled {
-  background: #a5d6a7;
+  background: #f0b088;
   cursor: not-allowed;
 }
 
 .link-btn {
   background: none;
   border: none;
-  color: #4CAF50;
+  color: #E8752F;
   cursor: pointer;
   font-weight: 600;
   padding: 0 5px;
@@ -144,7 +144,7 @@ body {
 }
 
 .message {
-  color: #4CAF50;
+  color: #E8752F;
   margin-top: 10px;
   text-align: center;
 }
@@ -215,8 +215,8 @@ body {
 }
 
 .status.active {
-  background: #e8f5e9;
-  color: #2e7d32;
+  background: #fdece1;
+  color: #E8752F;
 }
 
 .status.inactive {
@@ -280,7 +280,7 @@ body {
 }
 
 .progress-bar {
-  background: linear-gradient(90deg, #4CAF50, #8BC34A);
+  background: linear-gradient(90deg, #E8752F, #F0975C);
   height: 100%;
   border-radius: 10px;
   color: white;
@@ -310,7 +310,7 @@ body {
 }
 
 .btn-claim {
-  background: #4CAF50;
+  background: #E8752F;
   color: white;
   border: none;
   padding: 14px 40px;
@@ -322,29 +322,29 @@ body {
 }
 
 .btn-claim:hover {
-  background: #43A047;
+  background: #D4671F;
 }
 
 .btn-claim:disabled {
-  background: #a5d6a7;
+  background: #f0b088;
   cursor: not-allowed;
 }
 
 .claim-message {
   margin-top: 10px;
-  color: #4CAF50;
+  color: #E8752F;
   font-weight: bold;
 }
 
 .claimed-banner {
-  background: #e8f5e9;
-  border: 2px solid #4CAF50;
+  background: #fdece1;
+  border: 2px solid #E8752F;
   border-radius: 12px;
   padding: 20px;
   margin-bottom: 20px;
   text-align: center;
   font-size: 18px;
-  color: #2e7d32;
+  color: #D4671F;
 }
 
 .claimed-banner p {
@@ -380,12 +380,12 @@ body {
 .upload-form input:focus,
 .upload-form textarea:focus {
   outline: none;
-  border-color: #4CAF50;
+  border-color: #E8752F;
 }
 
 .upload-form button {
   padding: 12px 30px;
-  background: #4CAF50;
+  background: #E8752F;
   color: white;
   border: none;
   border-radius: 8px;
@@ -396,11 +396,11 @@ body {
 }
 
 .upload-form button:hover {
-  background: #43A047;
+  background: #D4671F;
 }
 
 .upload-form button:disabled {
-  background: #a5d6a7;
+  background: #f0b088;
   cursor: not-allowed;
 }
 

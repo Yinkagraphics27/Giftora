@@ -12,6 +12,7 @@ import ProductDetail from './pages/ProductDetail';
 import InternalAdmin from './pages/InternalAdmin';
 import CategoriesPage from './pages/Categories';
 import Register from './pages/Register';
+import ResetPassword from './pages/ResetPassword';
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
         <Route path="/categories" element={<CategoriesPage />} />
         <Route path="/register" element={<Register />} />
         <Route path="*" element={<NotFound />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
       </Routes>
     </AuthProvider>
   );

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -30,15 +30,23 @@ const CATEGORIES = [
 ];
 
 const BrowseGifts = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
+  const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || "all");
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  useEffect(() => {
+    const urlSearch = searchParams.get("search") || "";
+    const urlCategory = searchParams.get("category") || "all";
+    setSearchQuery(urlSearch);
+    setSelectedCategory(urlCategory);
+  }, [searchParams]);
 
   const fetchProducts = async () => {
     setIsLoading(true);
@@ -68,9 +76,32 @@ const BrowseGifts = () => {
   const formatPrice = (price: number) =>
     new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(price);
 
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    const params = new URLSearchParams(searchParams);
+    if (value) {
+      params.set("search", value);
+    } else {
+      params.delete("search");
+    }
+    setSearchParams(params, { replace: true });
+  };
+
+  const handleCategoryChange = (categoryId: string) => {
+    setSelectedCategory(categoryId);
+    const params = new URLSearchParams(searchParams);
+    if (categoryId !== "all") {
+      params.set("category", categoryId);
+    } else {
+      params.delete("category");
+    }
+    setSearchParams(params, { replace: true });
+  };
+
   const resetFilters = () => {
     setSearchQuery("");
     setSelectedCategory("all");
+    setSearchParams({}, { replace: true });
   };
 
   const hasActiveFilters = searchQuery || selectedCategory !== "all";
@@ -96,7 +127,7 @@ const BrowseGifts = () => {
                   type="text"
                   placeholder="Search gifts..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                   className="h-14 rounded-2xl border-border bg-background pl-12 pr-4 text-base shadow-soft"
                 />
               </div>
@@ -120,7 +151,7 @@ const BrowseGifts = () => {
             </div>
 
             <div className={`mb-8 flex-wrap gap-3 ${showFilters ? "flex" : "hidden md:flex"}`}>
-              <Button variant={selectedCategory === "all" ? "gold" : "outline"} size="sm" onClick={() => setSelectedCategory("all")} className="rounded-full">
+              <Button variant={selectedCategory === "all" ? "gold" : "outline"} size="sm" onClick={() => handleCategoryChange("all")} className="rounded-full">
                 All Gifts
               </Button>
               {CATEGORIES.map((category) => (
@@ -128,7 +159,7 @@ const BrowseGifts = () => {
                   key={category.id}
                   variant={selectedCategory === category.id ? "gold" : "outline"}
                   size="sm"
-                  onClick={() => setSelectedCategory(category.id)}
+                  onClick={() => handleCategoryChange(category.id)}
                   className="gap-2 rounded-full"
                 >
                   <span>{category.icon}</span>
