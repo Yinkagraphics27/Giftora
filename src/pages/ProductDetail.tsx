@@ -20,6 +20,7 @@ import {
   ShoppingBag,
   Check,
   ArrowRight,
+  Zap,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/contexts/CartContext";
@@ -58,8 +59,9 @@ const ProductDetail = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [justAdded, setJustAdded] = useState(false);
+  const [isBuyingNow, setIsBuyingNow] = useState(false);
 
-  const { addItem, isInCart } = useCart();
+  const { addItem, isInCart, items } = useCart();
 
   useEffect(() => {
     if (id) fetchProduct(id);
@@ -89,32 +91,52 @@ const ProductDetail = () => {
       maximumFractionDigits: 0,
     }).format(price);
 
+  const buildCartProduct = (p: Product) => ({
+    id: p.id,
+    name: p.name,
+    price: Number(p.price),
+    image_url: p.image_url,
+    category: p.category,
+    vendor_id: p.vendor_id,
+    vendor_name: p.vendor_profiles?.business_name ?? "Vendor",
+  });
+
+  // ---- ADD TO CART (stays on page) ----
   const handleAddToCart = async () => {
     if (!product || !product.vendor_profiles) return;
 
-    await addItem(
-      {
-        id: product.id,
-        name: product.name,
-        price: Number(product.price),
-        image_url: product.image_url,
-        category: product.category,
-        vendor_id: product.vendor_id,
-        vendor_name: product.vendor_profiles.business_name,
-      },
-      quantity
-    );
+    await addItem(buildCartProduct(product), quantity);
 
     setJustAdded(true);
     toast.success("Added to cart", {
       description: `${quantity} × ${product.name}`,
       action: {
-        label: "View Cart",
-        onClick: () => navigate("/cart"),
+        label: "Checkout",
+        onClick: () => navigate("/checkout"),
       },
     });
 
     setTimeout(() => setJustAdded(false), 2000);
+  };
+
+  // ---- BUY NOW (jumps to checkout) ----
+  const handleBuyNow = async () => {
+    if (!product || !product.vendor_profiles) return;
+
+    setIsBuyingNow(true);
+
+    // If item is already in cart, just navigate. Otherwise add then navigate.
+    const alreadyInCart = items.some((i) => i.product.id === product.id);
+
+    if (!alreadyInCart) {
+      await addItem(buildCartProduct(product), quantity);
+    }
+
+    // Small toast to acknowledge before jump
+    toast.success("Heading to checkout...");
+
+    // Navigate immediately — cart state is already updated
+    navigate("/checkout");
   };
 
   const incrementQuantity = () => setQuantity((q) => Math.min(q + 1, 99));
@@ -238,7 +260,7 @@ const ProductDetail = () => {
 
                 <Separator className="bg-canvas-200" />
 
-                {/* Quantity + Add to Cart block */}
+                {/* Quantity + CTA block */}
                 <div className="space-y-4 rounded-xl border border-canvas-200 bg-white p-5">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-navy-800">
@@ -288,21 +310,44 @@ const ProductDetail = () => {
                     </div>
                   </div>
 
-                  {/* Add to Cart Button (PRIMARY CTA) */}
+                  {/* ---- PRIMARY: Buy Now ---- */}
                   <Button
                     variant="gold"
                     size="xl"
                     className="w-full gap-2"
+                    onClick={handleBuyNow}
+                    disabled={isBuyingNow}
+                  >
+                    {isBuyingNow ? (
+                      <>
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        Taking you to checkout...
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="h-5 w-5" />
+                        Buy Now — {formatPrice(lineTotal)}
+                      </>
+                    )}
+                  </Button>
+
+                  {/* ---- SECONDARY: Add to Cart ---- */}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="lg"
+                    className="w-full gap-2 border-gold-500/60 text-gold-600 hover:bg-gold-100 hover:border-gold-500"
                     onClick={handleAddToCart}
+                    disabled={isBuyingNow}
                   >
                     {justAdded ? (
                       <>
-                        <Check className="h-5 w-5" />
+                        <Check className="h-4 w-4" />
                         Added to Cart
                       </>
                     ) : (
                       <>
-                        <ShoppingBag className="h-5 w-5" />
+                        <ShoppingBag className="h-4 w-4" />
                         Add to Cart
                       </>
                     )}
@@ -419,7 +464,7 @@ const ProductDetail = () => {
           </div>
         </section>
 
-        {/* ✅ NEW — Reviews Section */}
+        {/* Reviews Section */}
         <section className="border-t border-canvas-200 bg-canvas-50 py-12">
           <div className="container">
             <div className="mb-6">
