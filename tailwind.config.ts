@@ -14,10 +14,12 @@ export default {
     },
     extend: {
       fontFamily: {
-        heading: ['var(--font-heading)', 'serif'],
-        body: ['var(--font-body)', 'sans-serif'],
+        heading: ['var(--font-heading)', 'Playfair Display', 'serif'],
+        body: ['var(--font-body)', 'Inter', 'sans-serif'],
+        display: ['var(--font-heading)', 'Playfair Display', 'serif'],
       },
       colors: {
+        /* ---------- shadcn semantic tokens ---------- */
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -51,11 +53,36 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        gold: {
-          DEFAULT: "hsl(var(--gold))",
-          light: "hsl(var(--gold-light))",
-          dark: "hsl(var(--gold-dark))",
+
+        /* ---------- MODERN EXECUTIVE BRAND SCALES ---------- */
+        navy: {
+          400: "hsl(var(--navy-400))",
+          500: "hsl(var(--navy-500))",
+          600: "hsl(var(--navy-600))",
+          700: "hsl(var(--navy-700))",
+          800: "hsl(var(--navy-800))",   // ★ primary
+          900: "hsl(var(--navy-900))",
+          DEFAULT: "hsl(var(--navy-800))",
         },
+        gold: {
+          100: "hsl(var(--gold-100))",
+          300: "hsl(var(--gold-300))",
+          400: "hsl(var(--gold-400))",
+          500: "hsl(var(--gold-500))",   // ★ accent
+          600: "hsl(var(--gold-600))",
+          DEFAULT: "hsl(var(--gold-500))",
+          light: "hsl(var(--gold-400))",
+          dark: "hsl(var(--gold-600))",
+        },
+        canvas: {
+          50: "hsl(var(--canvas-50))",   // ★ page bg
+          100: "hsl(var(--canvas-100))",
+          200: "hsl(var(--canvas-200))",
+          300: "hsl(var(--canvas-300))",
+          DEFAULT: "hsl(var(--canvas-50))",
+        },
+
+        /* ---------- Legacy aliases (kept so nothing breaks) ---------- */
         cream: {
           DEFAULT: "hsl(var(--cream))",
           dark: "hsl(var(--cream-dark))",
@@ -65,6 +92,8 @@ export default {
           light: "hsl(var(--charcoal-light))",
         },
         "rose-gold": "hsl(var(--rose-gold))",
+
+        /* ---------- Sidebar ---------- */
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -80,6 +109,14 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      boxShadow: {
+        /* Navy-tinted shadows for that "premium" depth */
+        sm: "0 1px 2px rgba(11, 27, 61, 0.06)",
+        DEFAULT: "0 2px 8px rgba(11, 27, 61, 0.06)",
+        md: "0 4px 12px rgba(11, 27, 61, 0.08)",
+        lg: "0 12px 32px rgba(11, 27, 61, 0.12)",
+        gold: "0 0 0 1px rgba(212, 175, 55, 0.35)",
       },
       keyframes: {
         "accordion-down": {

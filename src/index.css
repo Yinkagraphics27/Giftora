@@ -3,86 +3,223 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================
+   THE MODERN EXECUTIVE — COLOR SYSTEM
+   60% Deep Navy | 20% Champagne Gold | 20% Off-White
+   All shadcn tokens use HSL channel format (hsl() wrapped by Tailwind).
+   ============================================ */
+
 @layer base {
   :root {
-    --background: 40 33% 98%;
-    --foreground: 240 10% 15%;
+    /* ---------- CANVAS BASE (20%) ---------- */
+    /* #FBFBFA */
+    --background: 40 20% 98%;
+    /* Deep navy for body text on light */
+    /* #0B1B3D */
+    --foreground: 219 71% 14%;
 
+    /* Surfaces — pure white cards on off-white canvas */
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 15%;
+    --card-foreground: 219 71% 14%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 15%;
+    --popover-foreground: 219 71% 14%;
 
-    --primary: 23 80% 55%;
-    --primary-foreground: 0 0% 100%;
+    /* ---------- PRIMARY = Deep Navy (60%) ---------- */
+    /* #0B1B3D */
+    --primary: 219 71% 14%;
+    --primary-foreground: 40 20% 98%;
 
-    --secondary: 30 20% 94%;
-    --secondary-foreground: 240 10% 15%;
+    /* ---------- SECONDARY = Soft off-white surface ---------- */
+    /* #F4F4F2 */
+    --secondary: 60 8% 95%;
+    --secondary-foreground: 219 71% 14%;
 
-    --muted: 30 20% 94%;
-    --muted-foreground: 240 5% 45%;
+    /* ---------- MUTED = Neutral with navy undertone ---------- */
+    --muted: 60 8% 95%;
+    --muted-foreground: 219 20% 45%;
 
-    --accent: 23 80% 94%;
-    --accent-foreground: 23 75% 30%;
+    /* ---------- ACCENT = Champagne Gold tint ---------- */
+    /* #F7EFCF tint bg, #B8942A text */
+    --accent: 47 71% 89%;
+    --accent-foreground: 43 63% 45%;
 
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 98%;
+    /* ---------- DESTRUCTIVE ---------- */
+    --destructive: 6 60% 41%;
+    --destructive-foreground: 40 20% 98%;
 
-    --border: 30 15% 88%;
-    --input: 30 15% 88%;
-    --ring: 23 80% 55%;
+    /* ---------- BORDERS / INPUTS / RINGS ---------- */
+    /* #E8E8E4 */
+    --border: 60 5% 90%;
+    --input: 60 5% 90%;
+    /* Focus ring = Champagne Gold */
+    --ring: 46 65% 52%;
 
     --radius: 0.75rem;
 
-    --gold: 23 80% 55%;
-    --gold-light: 23 85% 68%;
-    --gold-dark: 23 75% 42%;
+    /* ==========================================
+       BRAND EXTENSIONS — Modern Executive Palette
+       ========================================== */
 
-    --cream: 40 33% 98%;
-    --cream-dark: 40 25% 92%;
+    /* ----- Deep Navy scale ----- */
+    /* #060F26 */
+    --navy-900: 219 71% 8%;
+    /* #0B1B3D  (primary) */
+    --navy-800: 219 71% 14%;
+    /* #12264F */
+    --navy-700: 220 62% 19%;
+    /* #1B3468 */
+    --navy-600: 220 58% 26%;
+    /* #2A4A87 */
+    --navy-500: 220 53% 35%;
+    /* #4A6BA8 */
+    --navy-400: 218 38% 47%;
 
-    --charcoal: 240 10% 15%;
-    --charcoal-light: 240 6% 30%;
+    /* ----- Champagne Gold scale ----- */
+    /* #B8942A */
+    --gold-600: 43 63% 45%;
+    /* #D4AF37  (primary accent) */
+    --gold-500: 46 65% 52%;
+    /* #E0C158 */
+    --gold-400: 46 67% 61%;
+    /* #EBD68C */
+    --gold-300: 46 68% 74%;
+    /* #F7EFCF */
+    --gold-100: 47 71% 89%;
 
-    --rose-gold: 10 40% 70%;
+    /* ----- Off-White canvas scale ----- */
+    /* #FBFBFA */
+    --canvas-50: 40 20% 98%;
+    /* #F4F4F2 */
+    --canvas-100: 60 8% 95%;
+    /* #E8E8E4 */
+    --canvas-200: 60 5% 90%;
+    /* #D6D6D0 */
+    --canvas-300: 60 5% 83%;
 
-    --font-heading: 'Poppins', sans-serif;
-    --font-body: 'Poppins', sans-serif;
+    /* ----- Semantic ----- */
+    --success: 152 46% 33%;
+    --warning: 32 73% 45%;
+    --info: 220 53% 35%;
 
+    /* ----- Backward-compat aliases (existing components use these) ----- */
+    /* Map old "gold" to our Champagne Gold so nothing breaks */
+    --gold: 46 65% 52%;
+    --gold-light: 46 67% 61%;
+    --gold-dark: 43 63% 45%;
+
+    --cream: 40 20% 98%;
+    --cream-dark: 60 8% 95%;
+
+    /* Map charcoal → navy-800 */
+    --charcoal: 219 71% 14%;
+    --charcoal-light: 220 53% 35%;
+
+    /* Rose gold kept for legacy but tinted toward champagne */
+    --rose-gold: 30 40% 70%;
+
+    /* ----- Fonts ----- */
+    --font-heading: 'Playfair Display', 'Poppins', Georgia, serif;
+    --font-body: 'Inter', 'Poppins', -apple-system, sans-serif;
+
+    /* ----- Sidebar (admin/vendor dashboard) ----- */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 240 10% 15%;
-    --sidebar-primary: 23 80% 55%;
-    --sidebar-primary-foreground: 40 33% 98%;
-    --sidebar-accent: 23 80% 94%;
-    --sidebar-accent-foreground: 23 75% 30%;
-    --sidebar-border: 30 15% 88%;
-    --sidebar-ring: 23 80% 55%;
+    --sidebar-foreground: 219 71% 14%;
+    --sidebar-primary: 46 65% 52%;          /* gold accent */
+    --sidebar-primary-foreground: 219 71% 14%; /* navy text on gold */
+    --sidebar-accent: 47 71% 89%;
+    --sidebar-accent-foreground: 43 63% 45%;
+    --sidebar-border: 60 5% 90%;
+    --sidebar-ring: 46 65% 52%;
+  }
+
+  /* ---------- OPTIONAL DARK MODE (Navy-900 base) ---------- */
+  .dark {
+    --background: 219 71% 8%;
+    --foreground: 40 20% 98%;
+
+    --card: 219 71% 14%;
+    --card-foreground: 40 20% 98%;
+
+    --popover: 219 71% 14%;
+    --popover-foreground: 40 20% 98%;
+
+    --primary: 46 65% 52%;
+    --primary-foreground: 219 71% 14%;
+
+    --secondary: 220 62% 19%;
+    --secondary-foreground: 40 20% 98%;
+
+    --muted: 220 62% 19%;
+    --muted-foreground: 46 20% 70%;
+
+    --accent: 220 62% 19%;
+    --accent-foreground: 46 67% 61%;
+
+    --destructive: 6 60% 41%;
+    --destructive-foreground: 40 20% 98%;
+
+    --border: 220 58% 26%;
+    --input: 220 58% 26%;
+    --ring: 46 65% 52%;
+
+    --sidebar-background: 219 71% 14%;
+    --sidebar-foreground: 40 20% 98%;
+    --sidebar-primary: 46 65% 52%;
+    --sidebar-primary-foreground: 219 71% 14%;
+    --sidebar-accent: 220 62% 19%;
+    --sidebar-accent-foreground: 46 67% 61%;
+    --sidebar-border: 220 58% 26%;
+    --sidebar-ring: 46 65% 52%;
   }
 }
 
-body {
-  font-family: 'Poppins', sans-serif;
-  color: #333;
-  min-height: 100vh;
+/* ============================================
+   BASE ELEMENT STYLES
+   ============================================ */
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    font-family: var(--font-body);
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-heading);
+    color: hsl(var(--navy-800));
+    letter-spacing: -0.01em;
+  }
+
+  ::selection {
+    background: hsl(var(--gold-300));
+    color: hsl(var(--navy-900));
+  }
 }
 
 /* ============================================
-   AUTH PAGES (used by hand-coded VendorAuth/VendorDashboard)
+   AUTH PAGES (VendorAuth, etc.)
    ============================================ */
 .auth-container {
   max-width: 420px;
   margin: 80px auto;
   padding: 40px;
-  background: white;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--canvas-200));
   border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px rgba(11, 27, 61, 0.08);
 }
 
 .auth-container h2 {
   text-align: center;
   margin-bottom: 30px;
-  color: #1a1a2e;
+  color: hsl(var(--navy-800));
+  font-family: var(--font-heading);
   font-size: 28px;
 }
 
@@ -90,65 +227,81 @@ body {
   width: 100%;
   padding: 12px 16px;
   margin: 10px 0;
-  border: 1px solid #ddd;
+  border: 1.5px solid hsl(var(--canvas-200));
   border-radius: 8px;
   font-size: 16px;
-  transition: border-color 0.3s;
+  font-family: var(--font-body);
+  background: hsl(var(--card));
+  color: hsl(var(--navy-800));
+  transition: all 0.2s ease;
 }
 
 .auth-container input:focus {
   outline: none;
-  border-color: #E8752F;
+  border-color: hsl(var(--gold-500));
+  box-shadow: 0 0 0 3px hsl(var(--gold-100));
 }
 
 .auth-container button[type="submit"] {
   width: 100%;
   padding: 14px;
-  background: #E8752F;
-  color: white;
+  background: hsl(var(--gold-500));
+  color: hsl(var(--navy-900));
   border: none;
   border-radius: 8px;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.01em;
   cursor: pointer;
   margin-top: 15px;
-  transition: background 0.3s;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(11, 27, 61, 0.06);
 }
 
 .auth-container button[type="submit"]:hover {
-  background: #D4671F;
+  background: hsl(var(--gold-400));
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(11, 27, 61, 0.10);
 }
 
 .auth-container button[type="submit"]:disabled {
-  background: #f0b088;
+  background: hsl(var(--canvas-200));
+  color: hsl(var(--muted-foreground));
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .link-btn {
   background: none;
   border: none;
-  color: #E8752F;
+  color: hsl(var(--gold-600));
   cursor: pointer;
   font-weight: 600;
   padding: 0 5px;
 }
 
 .link-btn:hover {
+  color: hsl(var(--navy-800));
   text-decoration: underline;
 }
 
 .error {
-  color: #dc3545;
+  color: hsl(var(--destructive));
   margin-top: 10px;
   text-align: center;
 }
 
 .message {
-  color: #E8752F;
+  color: hsl(var(--gold-600));
   margin-top: 10px;
   text-align: center;
+  font-weight: 600;
 }
 
+/* ============================================
+   DASHBOARD SHELL
+   ============================================ */
 .dashboard {
   max-width: 1200px;
   margin: 0 auto;
@@ -160,17 +313,20 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 20px 30px;
-  background: white;
+  background: hsl(var(--navy-800));
+  color: hsl(var(--canvas-50));
+  border-bottom: 2px solid hsl(var(--gold-500));
   border-radius: 12px;
   margin-bottom: 30px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 10px rgba(11, 27, 61, 0.15);
   flex-wrap: wrap;
   gap: 15px;
 }
 
 .dashboard-header h1 {
   font-size: 24px;
-  color: #1a1a2e;
+  color: hsl(var(--canvas-50));
+  font-family: var(--font-heading);
 }
 
 .header-actions {
@@ -182,24 +338,27 @@ body {
 
 .vendor-name {
   font-weight: 600;
-  color: #1a1a2e;
+  color: hsl(var(--gold-400));
 }
 
 .signout-btn {
   padding: 8px 20px;
-  background: #dc3545;
-  color: white;
-  border: none;
+  background: transparent;
+  color: hsl(var(--gold-500));
+  border: 1.5px solid hsl(var(--gold-500));
   border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
-  transition: background 0.3s;
+  font-weight: 600;
+  transition: all 0.2s ease;
 }
 
 .signout-btn:hover {
-  background: #c82333;
+  background: hsl(var(--gold-500));
+  color: hsl(var(--navy-900));
 }
 
+/* Status pills */
 .status {
   display: inline-block;
   padding: 4px 12px;
@@ -207,23 +366,29 @@ body {
   font-size: 12px;
   font-weight: 600;
   text-transform: capitalize;
+  letter-spacing: 0.03em;
 }
 
 .status.draft {
-  background: #fff3e0;
-  color: #e65100;
+  background: hsl(var(--gold-100));
+  color: hsl(var(--gold-600));
+  border: 1px solid hsl(var(--gold-300));
 }
 
 .status.active {
-  background: #fdece1;
-  color: #E8752F;
+  background: hsl(var(--navy-800));
+  color: hsl(var(--gold-400));
 }
 
 .status.inactive {
-  background: #f5f5f5;
-  color: #666;
+  background: hsl(var(--canvas-100));
+  color: hsl(var(--muted-foreground));
+  border: 1px solid hsl(var(--canvas-200));
 }
 
+/* ============================================
+   DASHBOARD GRID + STAT CARDS
+   ============================================ */
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -232,47 +397,63 @@ body {
 }
 
 .card {
-  background: white;
+  background: hsl(var(--card));
   padding: 20px;
+  border: 1px solid hsl(var(--canvas-200));
   border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 3px rgba(11, 27, 61, 0.04);
+  transition: all 0.2s ease;
+}
+
+.card:hover {
+  border-color: hsl(var(--gold-300));
+  box-shadow: 0 4px 12px rgba(11, 27, 61, 0.08);
 }
 
 .card h3 {
-  font-size: 14px;
-  color: #666;
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.08em;
   margin-bottom: 5px;
+  font-family: var(--font-body);
+  font-weight: 600;
 }
 
 .card-value {
   font-size: 32px;
-  font-weight: bold;
-  color: #1a1a2e;
+  font-weight: 700;
+  color: hsl(var(--navy-800));
+  font-family: var(--font-heading);
 }
 
 .card-detail {
   font-size: 14px;
-  color: #666;
+  color: hsl(var(--muted-foreground));
   margin-top: 5px;
 }
 
+/* ============================================
+   PROGRESS SECTION — Navy → Gold gradient
+   ============================================ */
 .progress-section {
-  background: white;
+  background: hsl(var(--card));
   padding: 20px 30px;
+  border: 1px solid hsl(var(--canvas-200));
   border-radius: 12px;
   margin-bottom: 20px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 3px rgba(11, 27, 61, 0.04);
 }
 
 .progress-section h3 {
   margin-bottom: 10px;
-  color: #1a1a2e;
+  color: hsl(var(--navy-800));
+  font-family: var(--font-heading);
 }
 
 .progress-bar-container {
-  background: #f0f0f0;
+  background: hsl(var(--canvas-100));
+  border: 1px solid hsl(var(--canvas-200));
   border-radius: 10px;
   height: 30px;
   position: relative;
@@ -280,89 +461,116 @@ body {
 }
 
 .progress-bar {
-  background: linear-gradient(90deg, #E8752F, #F0975C);
+  background: linear-gradient(90deg, hsl(var(--navy-800)) 0%, hsl(var(--gold-500)) 100%);
   height: 100%;
   border-radius: 10px;
-  color: white;
+  color: hsl(var(--canvas-50));
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 14px;
-  font-weight: bold;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   transition: width 0.5s ease;
   min-width: 40px;
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.1);
 }
 
 .progress-text {
   text-align: center;
   margin-top: 10px;
   font-size: 16px;
-  color: #333;
+  color: hsl(var(--navy-500));
 }
 
+/* ============================================
+   CLAIM SECTION — Gold primary CTA
+   ============================================ */
 .claim-section {
-  background: white;
+  background: hsl(var(--card));
   padding: 20px 30px;
+  border: 1px solid hsl(var(--canvas-200));
   border-radius: 12px;
   margin-bottom: 20px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 3px rgba(11, 27, 61, 0.04);
   text-align: center;
 }
 
 .btn-claim {
-  background: #E8752F;
-  color: white;
+  background: hsl(var(--gold-500));
+  color: hsl(var(--navy-900));
   border: none;
   padding: 14px 40px;
   border-radius: 8px;
   font-size: 18px;
-  font-weight: bold;
+  font-weight: 700;
+  letter-spacing: 0.01em;
   cursor: pointer;
-  transition: background 0.3s;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(11, 27, 61, 0.06);
 }
 
 .btn-claim:hover {
-  background: #D4671F;
+  background: hsl(var(--gold-400));
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(11, 27, 61, 0.10);
+}
+
+.btn-claim:active {
+  background: hsl(var(--gold-600));
+  transform: translateY(0);
 }
 
 .btn-claim:disabled {
-  background: #f0b088;
+  background: hsl(var(--canvas-200));
+  color: hsl(var(--muted-foreground));
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .claim-message {
   margin-top: 10px;
-  color: #E8752F;
-  font-weight: bold;
+  color: hsl(var(--gold-600));
+  font-weight: 600;
 }
 
 .claimed-banner {
-  background: #fdece1;
-  border: 2px solid #E8752F;
+  background: hsl(var(--gold-100));
+  border: 2px solid hsl(var(--gold-500));
   border-radius: 12px;
   padding: 20px;
   margin-bottom: 20px;
   text-align: center;
   font-size: 18px;
-  color: #D4671F;
+  color: hsl(var(--navy-800));
+  font-weight: 600;
+  box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.15);
 }
 
 .claimed-banner p {
   margin-top: 5px;
   font-size: 16px;
+  color: hsl(var(--navy-500));
+  font-weight: 400;
 }
 
+/* ============================================
+   UPLOAD SECTION
+   ============================================ */
 .upload-section {
-  background: white;
+  background: hsl(var(--card));
   padding: 30px;
+  border: 1px solid hsl(var(--canvas-200));
   border-radius: 12px;
   margin-bottom: 30px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 3px rgba(11, 27, 61, 0.04);
 }
 
 .upload-section h2 {
   margin-bottom: 20px;
-  color: #1a1a2e;
+  color: hsl(var(--navy-800));
+  font-family: var(--font-heading);
 }
 
 .upload-form input,
@@ -370,50 +578,62 @@ body {
   width: 100%;
   padding: 12px 16px;
   margin: 10px 0;
-  border: 1px solid #ddd;
+  border: 1.5px solid hsl(var(--canvas-200));
   border-radius: 8px;
   font-size: 16px;
-  font-family: inherit;
-  transition: border-color 0.3s;
+  font-family: var(--font-body);
+  background: hsl(var(--card));
+  color: hsl(var(--navy-800));
+  transition: all 0.2s ease;
 }
 
 .upload-form input:focus,
 .upload-form textarea:focus {
   outline: none;
-  border-color: #E8752F;
+  border-color: hsl(var(--gold-500));
+  box-shadow: 0 0 0 3px hsl(var(--gold-100));
 }
 
 .upload-form button {
   padding: 12px 30px;
-  background: #E8752F;
-  color: white;
+  background: hsl(var(--gold-500));
+  color: hsl(var(--navy-900));
   border: none;
   border-radius: 8px;
   font-size: 16px;
+  font-weight: 600;
   cursor: pointer;
   margin-top: 10px;
-  transition: background 0.3s;
+  transition: all 0.2s ease;
 }
 
 .upload-form button:hover {
-  background: #D4671F;
+  background: hsl(var(--gold-400));
+  transform: translateY(-1px);
 }
 
 .upload-form button:disabled {
-  background: #f0b088;
+  background: hsl(var(--canvas-200));
+  color: hsl(var(--muted-foreground));
   cursor: not-allowed;
+  transform: none;
 }
 
+/* ============================================
+   PRODUCTS SECTION
+   ============================================ */
 .products-section {
-  background: white;
+  background: hsl(var(--card));
   padding: 30px;
+  border: 1px solid hsl(var(--canvas-200));
   border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 3px rgba(11, 27, 61, 0.04);
 }
 
 .products-section h2 {
   margin-bottom: 20px;
-  color: #1a1a2e;
+  color: hsl(var(--navy-800));
+  font-family: var(--font-heading);
 }
 
 .product-grid {
@@ -423,23 +643,27 @@ body {
 }
 
 .product-card {
-  border: 1px solid #eee;
+  border: 1px solid hsl(var(--canvas-200));
   padding: 16px;
   border-radius: 8px;
-  transition: box-shadow 0.2s;
+  background: hsl(var(--card));
+  transition: all 0.2s ease;
 }
 
 .product-card:hover {
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  border-color: hsl(var(--gold-300));
+  box-shadow: 0 4px 12px rgba(11, 27, 61, 0.08);
+  transform: translateY(-2px);
 }
 
 .product-card h4 {
   margin-bottom: 8px;
-  color: #1a1a2e;
+  color: hsl(var(--navy-800));
+  font-family: var(--font-heading);
 }
 
 .product-description {
-  color: #666;
+  color: hsl(var(--muted-foreground));
   font-size: 14px;
   margin-bottom: 10px;
   display: -webkit-box;
@@ -456,12 +680,13 @@ body {
 }
 
 .price {
-  font-weight: 600;
-  color: #1a1a2e;
+  font-weight: 700;
+  color: hsl(var(--navy-800));
+  font-family: var(--font-heading);
 }
 
 .no-products {
-  color: #666;
+  color: hsl(var(--muted-foreground));
   text-align: center;
   padding: 40px;
   grid-column: 1 / -1;
@@ -470,10 +695,13 @@ body {
 .loading {
   text-align: center;
   padding: 60px;
-  color: #666;
+  color: hsl(var(--muted-foreground));
   font-size: 18px;
 }
 
+/* ============================================
+   RESPONSIVE
+   ============================================ */
 @media (max-width: 600px) {
   .auth-container {
     margin: 40px 20px;
@@ -493,18 +721,12 @@ body {
     grid-template-columns: 1fr;
   }
 
-  .upload-section {
-    padding: 20px;
-  }
-
+  .upload-section,
   .products-section {
     padding: 20px;
   }
 
-  .progress-section {
-    padding: 15px 20px;
-  }
-
+  .progress-section,
   .claim-section {
     padding: 15px 20px;
   }

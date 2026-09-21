@@ -1,368 +1,372 @@
 // src/pages/VendorDashboard.tsx
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Gift,
+  Store,
+  Package,
+  LogOut,
+  Pencil,
+  Plus,
+  Trash2,
+  Loader2,
+  MapPin,
+  Sparkles,
+} from "lucide-react";
+
+interface Vendor {
+  id: string;
+  user_id: string;
+  business_name: string;
+  description: string | null;
+  city: string | null;
+  country: string | null;
+  whatsapp: string | null;
+  logo_url: string | null;
+  subscription_status: string;
+  subscription_expires_at: string | null;
+  free_month_earned: boolean;
+}
 
 interface Product {
   id: string;
   vendor_id: string;
   name: string;
-  description: string;
+  description: string | null;
   price: number;
   category: string;
-  image_url: string;
+  image_url: string | null;
   status: string;
-  published_at: string | null;
   created_at: string;
 }
 
 const CATEGORIES = [
-  { value: 'gift-boxes', label: 'Gift Boxes' },
-  { value: 'hampers', label: 'Hampers' },
-  { value: 'corporate', label: 'Corporate Gifts' },
-  { value: 'souvenirs', label: 'Souvenirs' },
-  { value: 'custom', label: 'Custom Gifts' },
+  { value: "gift-boxes", label: "Gift Boxes" },
+  { value: "hampers", label: "Hampers" },
+  { value: "corporate", label: "Corporate Gifts" },
+  { value: "souvenirs", label: "Souvenirs" },
+  { value: "custom", label: "Custom Gifts" },
 ];
 
+const REQUIRED_PRODUCTS = 100;
+
 const VendorDashboard = () => {
-  const [vendor, setVendor] = useState(null);
-  const [products, setProducts] = useState([]);
-  const [productName, setProductName] = useState('');
-  const [productDescription, setProductDescription] = useState('');
-  const [price, setPrice] = useState('');
-  const [category, setCategory] = useState('gift-boxes');
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
-  const [claimLoading, setClaimLoading] = useState(false);
-  const [claimMessage, setClaimMessage] = useState('');
-
-  const [editingId, setEditingId] = useState(null);
-  const [editName, setEditName] = useState('');
-  const [editDescription, setEditDescription] = useState('');
-  const [editPrice, setEditPrice] = useState('');
-  const [editCategory, setEditCategory] = useState('gift-boxes');
-  const [editSaving, setEditSaving] = useState(false);
-  const [deletingId, setDeletingId] = useState(null);
-
-  const [showProfileEdit, setShowProfileEdit] = useState(false);
-  const [profileBusinessName, setProfileBusinessName] = useState('');
-  const [profileDescription, setProfileDescription] = useState('');
-  const [profileCity, setProfileCity] = useState('');
-  const [profileCountry, setProfileCountry] = useState('');
-  const [profileWhatsapp, setProfileWhatsapp] = useState('');
-  const [logoFile, setLogoFile] = useState(null);
-  const [logoPreview, setLogoPreview] = useState(null);
-  const [profileSaving, setProfileSaving] = useState(false);
-  const [profileMessage, setProfileMessage] = useState('');
-
   const navigate = useNavigate();
+
+  const [vendor, setVendor] = useState<Vendor | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loadingVendor, setLoadingVendor] = useState(true);
+
+  // Profile dialog
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileName, setProfileName] = useState("");
+  const [profileDescription, setProfileDescription] = useState("");
+  const [profileCity, setProfileCity] = useState("");
+  const [profileCountry, setProfileCountry] = useState("");
+  const [profileWhatsapp, setProfileWhatsapp] = useState("");
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [profileSaving, setProfileSaving] = useState(false);
+
+  // Product dialog (add/edit)
+  const [productDialogOpen, setProductDialogOpen] = useState(false);
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [productName, setProductName] = useState("");
+  const [productDescription, setProductDescription] = useState("");
+  const [productPrice, setProductPrice] = useState("");
+  const [productCategory, setProductCategory] = useState("gift-boxes");
+  const [productImageFile, setProductImageFile] = useState<File | null>(null);
+  const [productImagePreview, setProductImagePreview] = useState<string | null>(null);
+  const [productSaving, setProductSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const [claimLoading, setClaimLoading] = useState(false);
+  const [toast, setToast] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
     checkUser();
   }, []);
 
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(t);
+  }, [toast]);
+
   const checkUser = async () => {
-    const result = await supabase.auth.getUser();
-    const user = result.data.user;
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      navigate('/signin');
+      navigate("/signin");
       return;
     }
-    await fetchVendorProfile(user.id);
+    fetchVendorProfile(user.id);
   };
 
-  const fetchVendorProfile = async (userId) => {
+  const fetchVendorProfile = async (userId: string) => {
+    setLoadingVendor(true);
     const { data, error } = await supabase
-      .from('vendor_profiles')
-      .select('*')
-      .eq('user_id', userId)
+      .from("vendor_profiles")
+      .select("*")
+      .eq("user_id", userId)
       .single();
 
-    if (error) {
-      console.error('Error fetching vendor:', error);
+    if (error || !data) {
+      console.error("Error fetching vendor:", error);
+      setLoadingVendor(false);
       return;
     }
-    setVendor(data);
-    setProfileBusinessName(data.business_name || '');
-    setProfileDescription(data.description || '');
-    setProfileCity(data.city || '');
-    setProfileCountry(data.country || '');
-    setProfileWhatsapp(data.whatsapp || '');
+
+    setVendor(data as Vendor);
+    setProfileName(data.business_name || "");
+    setProfileDescription(data.description || "");
+    setProfileCity(data.city || "");
+    setProfileCountry(data.country || "");
+    setProfileWhatsapp(data.whatsapp || "");
     fetchProducts(data.id);
+    setLoadingVendor(false);
   };
 
-  const fetchProducts = async (vendorId) => {
+  const fetchProducts = async (vendorId: string) => {
     const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .eq('vendor_id', vendorId)
-      .order('created_at', { ascending: false });
+      .from("products")
+      .select("*")
+      .eq("vendor_id", vendorId)
+      .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error('Error fetching products:', error);
-      return;
-    }
-    setProducts(data || []);
+    if (!error) setProducts((data as Product[]) || []);
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  // ---------- Profile ----------
 
-    if (file.size > 5 * 1024 * 1024) {
-      setMessage('Image must be less than 5MB');
-      return;
-    }
-
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
+  const openProfileDialog = () => {
+    if (!vendor) return;
+    setProfileName(vendor.business_name || "");
+    setProfileDescription(vendor.description || "");
+    setProfileCity(vendor.city || "");
+    setProfileCountry(vendor.country || "");
+    setProfileWhatsapp(vendor.whatsapp || "");
+    setLogoFile(null);
+    setLogoPreview(null);
+    setProfileOpen(true);
   };
 
-  const handleLogoChange = (e) => {
-    const file = e.target.files[0];
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (!file) return;
-
     if (file.size > 5 * 1024 * 1024) {
-      setProfileMessage('Logo must be less than 5MB');
+      setToast({ type: "error", text: "Logo must be under 5MB" });
       return;
     }
-
     setLogoFile(file);
     setLogoPreview(URL.createObjectURL(file));
   };
 
-  const handleUpload = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setMessage('');
-
-    if (!vendor) {
-      setMessage('Vendor profile not found.');
-      setLoading(false);
+  const saveProfile = async () => {
+    if (!vendor) return;
+    if (!profileName.trim()) {
+      setToast({ type: "error", text: "Business name is required" });
       return;
     }
 
-    if (!productName.trim()) {
-      setMessage('Please enter a product name.');
-      setLoading(false);
-      return;
-    }
-
-    try {
-      let imageUrl = null;
-
-      if (imageFile) {
-        const fileExt = imageFile.name.split('.').pop();
-        const fileName = vendor.id + '-' + Date.now() + '.' + fileExt;
-
-        const { error: uploadError } = await supabase.storage
-          .from('product-images')
-          .upload(fileName, imageFile);
-
-        if (uploadError) throw uploadError;
-
-        const { data: publicUrlData } = supabase.storage
-          .from('product-images')
-          .getPublicUrl(fileName);
-
-        imageUrl = publicUrlData.publicUrl;
-      }
-
-      const { error } = await supabase
-        .from('products')
-        .insert([
-          {
-            vendor_id: vendor.id,
-            name: productName.trim(),
-            description: productDescription.trim() || null,
-            price: parseFloat(price) || 0,
-            category: category,
-            image_url: imageUrl,
-            status: 'draft',
-          }
-        ]);
-
-      if (error) throw error;
-
-      setMessage('Product uploaded successfully!');
-      setProductName('');
-      setProductDescription('');
-      setPrice('');
-      setCategory('gift-boxes');
-      setImageFile(null);
-      setImagePreview(null);
-      fetchProducts(vendor.id);
-
-    } catch (error) {
-      console.error('Upload error:', error);
-      setMessage('Error: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleProfileSave = async (e) => {
-    e.preventDefault();
     setProfileSaving(true);
-    setProfileMessage('');
-
     try {
       let logoUrl = vendor.logo_url || null;
 
       if (logoFile) {
-        const fileExt = logoFile.name.split('.').pop();
-        const fileName = vendor.id + '-logo-' + Date.now() + '.' + fileExt;
-
+        const ext = logoFile.name.split(".").pop();
+        const fileName = `${vendor.id}-logo-${Date.now()}.${ext}`;
         const { error: uploadError } = await supabase.storage
-          .from('vendor-logos')
+          .from("vendor-logos")
           .upload(fileName, logoFile);
-
         if (uploadError) throw uploadError;
-
-        const { data: publicUrlData } = supabase.storage
-          .from('vendor-logos')
-          .getPublicUrl(fileName);
-
-        logoUrl = publicUrlData.publicUrl;
+        const { data: urlData } = supabase.storage.from("vendor-logos").getPublicUrl(fileName);
+        logoUrl = urlData.publicUrl;
       }
 
       const { error } = await supabase
-        .from('vendor_profiles')
+        .from("vendor_profiles")
         .update({
-          business_name: profileBusinessName.trim(),
+          business_name: profileName.trim(),
           description: profileDescription.trim() || null,
           city: profileCity.trim() || null,
           country: profileCountry.trim() || null,
           whatsapp: profileWhatsapp.trim() || null,
           logo_url: logoUrl,
         })
-        .eq('id', vendor.id);
+        .eq("id", vendor.id);
 
       if (error) throw error;
 
-      setProfileMessage('Profile updated successfully!');
-      setLogoFile(null);
-      setLogoPreview(null);
+      setToast({ type: "success", text: "Profile updated" });
+      setProfileOpen(false);
       fetchVendorProfile(vendor.user_id);
-    } catch (error) {
-      console.error('Profile save error:', error);
-      setProfileMessage('Error: ' + error.message);
+    } catch (err: any) {
+      setToast({ type: "error", text: err.message || "Failed to update profile" });
     } finally {
       setProfileSaving(false);
     }
   };
 
-  const startEdit = (product) => {
-    setEditingId(product.id);
-    setEditName(product.name);
-    setEditDescription(product.description || '');
-    setEditPrice(String(product.price));
-    setEditCategory(product.category || 'gift-boxes');
+  // ---------- Products ----------
+
+  const openAddProduct = () => {
+    setEditingProductId(null);
+    setProductName("");
+    setProductDescription("");
+    setProductPrice("");
+    setProductCategory("gift-boxes");
+    setProductImageFile(null);
+    setProductImagePreview(null);
+    setProductDialogOpen(true);
   };
 
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditName('');
-    setEditDescription('');
-    setEditPrice('');
-    setEditCategory('gift-boxes');
+  const openEditProduct = (product: Product) => {
+    setEditingProductId(product.id);
+    setProductName(product.name);
+    setProductDescription(product.description || "");
+    setProductPrice(String(product.price));
+    setProductCategory(product.category || "gift-boxes");
+    setProductImageFile(null);
+    setProductImagePreview(product.image_url);
+    setProductDialogOpen(true);
   };
 
-  const saveEdit = async (productId) => {
-    if (!editName.trim()) {
-      setMessage('Product name cannot be empty.');
+  const handleProductImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setToast({ type: "error", text: "Image must be under 5MB" });
+      return;
+    }
+    setProductImageFile(file);
+    setProductImagePreview(URL.createObjectURL(file));
+  };
+
+  const saveProduct = async () => {
+    if (!vendor) return;
+    if (!productName.trim()) {
+      setToast({ type: "error", text: "Product name is required" });
       return;
     }
 
-    setEditSaving(true);
-    setMessage('');
-
+    setProductSaving(true);
     try {
-      const { error } = await supabase
-        .from('products')
-        .update({
-          name: editName.trim(),
-          description: editDescription.trim() || null,
-          price: parseFloat(editPrice) || 0,
-          category: editCategory,
-        })
-        .eq('id', productId);
+      let imageUrl = editingProductId ? productImagePreview : null;
 
-      if (error) throw error;
+      if (productImageFile) {
+        const ext = productImageFile.name.split(".").pop();
+        const fileName = `${vendor.id}-${Date.now()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from("product-images")
+          .upload(fileName, productImageFile);
+        if (uploadError) throw uploadError;
+        const { data: urlData } = supabase.storage.from("product-images").getPublicUrl(fileName);
+        imageUrl = urlData.publicUrl;
+      }
 
-      setMessage('Product updated successfully!');
-      cancelEdit();
+      if (editingProductId) {
+        const { error } = await supabase
+          .from("products")
+          .update({
+            name: productName.trim(),
+            description: productDescription.trim() || null,
+            price: parseFloat(productPrice) || 0,
+            category: productCategory,
+            image_url: imageUrl,
+          })
+          .eq("id", editingProductId);
+        if (error) throw error;
+        setToast({ type: "success", text: "Product updated" });
+      } else {
+        const { error } = await supabase.from("products").insert([
+          {
+            vendor_id: vendor.id,
+            name: productName.trim(),
+            description: productDescription.trim() || null,
+            price: parseFloat(productPrice) || 0,
+            category: productCategory,
+            image_url: imageUrl,
+            status: "draft",
+            is_active: true,
+          },
+        ]);
+        if (error) throw error;
+        setToast({ type: "success", text: "Product added" });
+      }
+
+      setProductDialogOpen(false);
       fetchProducts(vendor.id);
-    } catch (error) {
-      console.error('Edit error:', error);
-      setMessage('Error: ' + error.message);
+    } catch (err: any) {
+      setToast({ type: "error", text: err.message || "Failed to save product" });
     } finally {
-      setEditSaving(false);
+      setProductSaving(false);
     }
   };
 
-  const handleDelete = async (productId) => {
-    const confirmed = window.confirm('Delete this product? This cannot be undone.');
-    if (!confirmed) return;
+  const handleDeleteProduct = async (productId: string) => {
+    if (!vendor) return;
+    if (!window.confirm("Delete this product? This cannot be undone.")) return;
 
     setDeletingId(productId);
-    setMessage('');
-
     try {
-      const { error } = await supabase
-        .from('products')
-        .delete()
-        .eq('id', productId);
-
+      const { error } = await supabase.from("products").delete().eq("id", productId);
       if (error) throw error;
-
-      setMessage('Product deleted.');
+      setToast({ type: "success", text: "Product deleted" });
       fetchProducts(vendor.id);
-    } catch (error) {
-      console.error('Delete error:', error);
-      setMessage('Error: ' + error.message);
+    } catch (err: any) {
+      setToast({ type: "error", text: err.message || "Failed to delete product" });
     } finally {
       setDeletingId(null);
     }
   };
 
+  // ---------- Free month ----------
+
   const handleClaimFreeMonth = async () => {
     setClaimLoading(true);
-    setClaimMessage('');
-
     try {
-      const sessionResult = await supabase.auth.getSession();
-      const session = sessionResult.data.session;
-
+      const { data: { session } } = await supabase.auth.getSession();
       const response = await fetch(
-        'https://iaoriuznuyppshgujnrw.supabase.co/functions/v1/activate-free-month',
+        "https://iaoriuznuyppshgujnrw.supabase.co/functions/v1/activate-free-month",
         {
-          method: 'POST',
+          method: "POST",
           headers: {
-            'Authorization': 'Bearer ' + (session ? session.access_token : ''),
-            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.access_token || ""}`,
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({}),
         }
       );
-
       const result = await response.json();
-
       if (result.success) {
-        setClaimMessage(result.message);
-        const userResult = await supabase.auth.getUser();
-        const user = userResult.data.user;
-        if (user) {
-          fetchVendorProfile(user.id);
-        }
+        setToast({ type: "success", text: result.message || "Free month claimed!" });
+        if (vendor) fetchVendorProfile(vendor.user_id);
       } else {
-        setClaimMessage('Error: ' + (result.error || 'Something went wrong'));
+        setToast({ type: "error", text: result.error || "Something went wrong" });
       }
-    } catch (error) {
-      console.error('Claim error:', error);
-      setClaimMessage('Error: ' + error.message);
+    } catch (err: any) {
+      setToast({ type: "error", text: err.message || "Failed to claim free month" });
     } finally {
       setClaimLoading(false);
     }
@@ -370,354 +374,351 @@ const VendorDashboard = () => {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    navigate('/signin');
+    navigate("/signin");
   };
 
-  const productCount = products.length;
-  const requiredProducts = 100;
-  const remaining = Math.max(0, requiredProducts - productCount);
-  const progress = Math.min(100, (productCount / requiredProducts) * 100);
-  const isEligible = productCount >= requiredProducts;
-  const alreadyClaimed = vendor ? vendor.free_month_earned : false;
-
-  if (!vendor) {
-    return <div className="loading">Loading vendor profile...</div>;
+  if (loadingVendor) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-muted/30">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
+  if (!vendor) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-muted/30 text-center">
+        <p className="text-muted-foreground">Vendor profile not found.</p>
+      </div>
+    );
+  }
+
+  const productCount = products.length;
+  const remaining = Math.max(0, REQUIRED_PRODUCTS - productCount);
+  const progress = Math.min(100, (productCount / REQUIRED_PRODUCTS) * 100);
+  const isEligible = productCount >= REQUIRED_PRODUCTS;
+
   return (
-    <div className="dashboard">
-      <header className="dashboard-header">
-        <a href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
-          <h1>Giftora Dashboard</h1>
-        </a>
-        <div className="header-actions">
-          <a href="/" style={{ padding: '8px 16px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '14px', color: '#333', textDecoration: 'none' }}>
-            Back to Site
-          </a>
-          <span className="vendor-name">{vendor.business_name}</span>
-          <span className={'status ' + vendor.subscription_status}>
-            {vendor.subscription_status}
-          </span>
-          <button className="signout-btn" onClick={handleSignOut}>
-            Sign Out
-          </button>
+    <div className="min-h-screen bg-muted/30">
+      {/* Header */}
+      <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
+        <div className="container flex h-16 items-center justify-between">
+          <Link to="/" className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary shadow-soft">
+              <Gift className="h-4 w-4 text-primary-foreground" />
+            </div>
+            <span className="font-heading text-lg font-bold text-foreground">Giftora</span>
+            <Badge variant="secondary" className="ml-1 hidden sm:inline-flex">Dashboard</Badge>
+          </Link>
+
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link to="/" className="hidden sm:block">
+              <Button variant="outline" size="sm">Back to Site</Button>
+            </Link>
+            <Badge variant="outline" className="hidden capitalize sm:inline-flex">
+              {vendor.subscription_status}
+            </Badge>
+            <Button variant="ghost" size="sm" onClick={handleSignOut} className="text-muted-foreground">
+              <LogOut className="mr-1.5 h-4 w-4" />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </header>
 
-      <div className="dashboard-grid">
-        <div className="card">
-          <h3>Products</h3>
-          <div className="card-value">{productCount}</div>
-          <div className="card-detail">
-            {remaining > 0 ? 'Need ' + remaining + ' more for free month' : 'Goal reached!'}
-          </div>
-        </div>
-        <div className="card">
-          <h3>Subscription</h3>
-          <div className="card-value">{vendor.subscription_status}</div>
-          {vendor.subscription_expires_at ? (
-            <div className="card-detail">
-              Expires: {new Date(vendor.subscription_expires_at).toLocaleDateString()}
-            </div>
-          ) : null}
-        </div>
-        <div className="card">
-          <h3>Free Month</h3>
-          <div className="card-value">{alreadyClaimed ? 'Claimed' : 'Available'}</div>
-          {!alreadyClaimed && isEligible ? (
-            <div className="card-detail">You are eligible!</div>
-          ) : null}
-          {!alreadyClaimed && !isEligible ? (
-            <div className="card-detail">{remaining} products to go</div>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="upload-section">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2>My Profile</h2>
-          <button
-            onClick={() => { setShowProfileEdit(!showProfileEdit); setProfileMessage(''); }}
-            style={{ padding: '8px 16px', background: showProfileEdit ? '#eee' : '#E8752F', color: showProfileEdit ? '#333' : 'white', border: 'none', borderRadius: '6px', fontSize: '13px', cursor: 'pointer' }}
+      <main className="container py-8">
+        {/* Toast */}
+        {toast && (
+          <div
+            className={`mb-6 rounded-xl border px-4 py-3 text-sm font-medium ${
+              toast.type === "success"
+                ? "border-green-200 bg-green-50 text-green-700"
+                : "border-red-200 bg-red-50 text-red-700"
+            }`}
           >
-            {showProfileEdit ? 'Close' : 'Edit Profile'}
-          </button>
+            {toast.text}
+          </div>
+        )}
+
+        {/* Profile card */}
+        <Card className="mb-8 overflow-hidden border-border">
+          <div className="h-20 bg-gradient-to-r from-primary to-[#c95f1f]" />
+          <CardContent className="relative px-6 pb-6">
+            <div className="-mt-10 flex flex-col items-start gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div className="flex items-end gap-4">
+                <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl border-4 border-background bg-card shadow-medium">
+                  {vendor.logo_url ? (
+                    <img src={vendor.logo_url} alt={vendor.business_name} className="h-full w-full object-cover" />
+                  ) : (
+                    <Store className="h-8 w-8 text-muted-foreground/40" />
+                  )}
+                </div>
+                <div className="pb-1">
+                  <h1 className="font-heading text-xl font-bold text-foreground sm:text-2xl">
+                    {vendor.business_name}
+                  </h1>
+                  {(vendor.city || vendor.country) ? (
+                    <div className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
+                      <MapPin className="h-3.5 w-3.5" />
+                      {[vendor.city, vendor.country].filter(Boolean).join(", ")}
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-sm text-muted-foreground">Location not set</p>
+                  )}
+                </div>
+              </div>
+
+              <Button onClick={openProfileDialog} className="w-full sm:w-auto">
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit Profile
+              </Button>
+            </div>
+
+            <p className="mt-4 max-w-2xl text-sm text-muted-foreground">
+              {vendor.description || "No description yet — tell buyers what makes your business special."}
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Stats */}
+        <div className="mb-8 grid gap-4 sm:grid-cols-3">
+          <Card>
+            <CardContent className="p-5">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Products</p>
+              <p className="mt-1 font-heading text-3xl font-bold text-foreground">{productCount}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {remaining > 0 ? `${remaining} more for free month` : "Goal reached!"}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-5">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Subscription</p>
+              <p className="mt-1 font-heading text-2xl font-bold capitalize text-foreground">
+                {vendor.subscription_status}
+              </p>
+              {vendor.subscription_expires_at && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Expires {new Date(vendor.subscription_expires_at).toLocaleDateString()}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-5">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Free Month</p>
+              <p className="mt-1 font-heading text-2xl font-bold text-foreground">
+                {vendor.free_month_earned ? "Claimed" : "Available"}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {vendor.free_month_earned ? "Enjoy!" : `${remaining} products to go`}
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
-        {!showProfileEdit ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '16px' }}>
-            {vendor.logo_url ? (
-              <img
-                src={vendor.logo_url}
-                alt="Logo"
-                style={{ width: '70px', height: '70px', objectFit: 'cover', borderRadius: '10px', border: '1px solid #ddd' }}
-              />
-            ) : (
-              <div style={{ width: '70px', height: '70px', borderRadius: '10px', background: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', fontSize: '12px' }}>
-                No logo
+        {/* Free month progress */}
+        {!vendor.free_month_earned && (
+          <Card className="mb-8">
+            <CardContent className="p-6">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="flex items-center gap-2 font-heading text-base font-semibold text-foreground">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  Progress to Free Month
+                </h3>
+                <span className="text-sm font-medium text-muted-foreground">
+                  {productCount} / {REQUIRED_PRODUCTS}
+                </span>
               </div>
-            )}
+              <Progress value={progress} className="h-2.5" />
+              {isEligible && (
+                <Button className="mt-4" onClick={handleClaimFreeMonth} disabled={claimLoading}>
+                  {claimLoading ? "Processing..." : "Claim Free Month"}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Products */}
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 font-heading text-lg font-semibold text-foreground">
+            <Package className="h-5 w-5 text-primary" />
+            Your Products ({products.length})
+          </h2>
+          <Button onClick={openAddProduct}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Product
+          </Button>
+        </div>
+
+        {products.length === 0 ? (
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+              <Package className="mb-3 h-10 w-10 text-muted-foreground/40" />
+              <p className="text-muted-foreground">No products yet. Add your first one!</p>
+              <Button className="mt-4" onClick={openAddProduct}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Product
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {products.map((product) => (
+              <Card key={product.id} className="group overflow-hidden">
+                <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                  {product.image_url ? (
+                    <img src={product.image_url} alt={product.name} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-3xl">🎁</div>
+                  )}
+                  <Badge className="absolute left-2 top-2 bg-background/90 text-[11px] text-foreground backdrop-blur-sm capitalize">
+                    {product.status}
+                  </Badge>
+                </div>
+                <CardContent className="p-4">
+                  <h3 className="line-clamp-1 font-semibold text-foreground">{product.name}</h3>
+                  <p className="mt-1 text-sm font-bold text-primary">
+                    NGN {product.price.toLocaleString()}
+                  </p>
+                  <div className="mt-3 flex gap-2">
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => openEditProduct(product)}>
+                      <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 border-red-200 text-red-600 hover:bg-red-50"
+                      onClick={() => handleDeleteProduct(product.id)}
+                      disabled={deletingId === product.id}
+                    >
+                      <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                      {deletingId === product.id ? "..." : "Delete"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </main>
+
+      {/* Edit Profile Dialog */}
+      <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Profile</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
             <div>
-              <p style={{ fontWeight: 600, marginBottom: '4px' }}>{vendor.business_name}</p>
-              {vendor.description ? <p style={{ fontSize: '14px', color: '#666' }}>{vendor.description}</p> : <p style={{ fontSize: '14px', color: '#999' }}>No description yet</p>}
-              {(vendor.city || vendor.country) && (
-                <p style={{ fontSize: '13px', color: '#888', marginTop: '4px' }}>
-                  {[vendor.city, vendor.country].filter(Boolean).join(', ')}
-                </p>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Logo</label>
+              <div className="flex items-center gap-4">
+                <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted">
+                  {logoPreview || vendor.logo_url ? (
+                    <img src={logoPreview || vendor.logo_url!} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <Store className="h-6 w-6 text-muted-foreground/40" />
+                  )}
+                </div>
+                <Input type="file" accept="image/*" onChange={handleLogoChange} className="flex-1" />
+              </div>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Business Name</label>
+              <Input value={profileName} onChange={(e) => setProfileName(e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Description</label>
+              <Textarea rows={3} value={profileDescription} onChange={(e) => setProfileDescription(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">City</label>
+                <Input value={profileCity} onChange={(e) => setProfileCity(e.target.value)} />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">Country</label>
+                <Input value={profileCountry} onChange={(e) => setProfileCountry(e.target.value)} />
+              </div>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">WhatsApp Number</label>
+              <Input
+                placeholder="e.g. 2348001234567"
+                value={profileWhatsapp}
+                onChange={(e) => setProfileWhatsapp(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setProfileOpen(false)} disabled={profileSaving}>
+              Cancel
+            </Button>
+            <Button onClick={saveProfile} disabled={profileSaving}>
+              {profileSaving ? "Saving..." : "Save Profile"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add/Edit Product Dialog */}
+      <Dialog open={productDialogOpen} onOpenChange={setProductDialogOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingProductId ? "Edit Product" : "Add Product"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Product Name *</label>
+              <Input value={productName} onChange={(e) => setProductName(e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Description</label>
+              <Textarea rows={3} value={productDescription} onChange={(e) => setProductDescription(e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Category</label>
+              <Select value={productCategory} onValueChange={setProductCategory}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES.map((cat) => (
+                    <SelectItem key={cat.value} value={cat.value}>
+                      {cat.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Price (NGN)</label>
+              <Input type="number" min="0" step="0.01" value={productPrice} onChange={(e) => setProductPrice(e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Image</label>
+              <Input type="file" accept="image/*" onChange={handleProductImageChange} />
+              {productImagePreview && (
+                <img
+                  src={productImagePreview}
+                  alt="Preview"
+                  className="mt-2 h-20 w-20 rounded-lg border border-border object-cover"
+                />
               )}
             </div>
           </div>
-        ) : (
-          <form onSubmit={handleProfileSave} className="upload-form" style={{ marginTop: '16px' }}>
-            <div style={{ marginBottom: '10px' }}>
-              <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#555' }}>
-                Logo
-              </label>
-              <input type="file" accept="image/*" onChange={handleLogoChange}
-                style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '14px' }}
-              />
-              {(logoPreview || vendor.logo_url) ? (
-                <img
-                  src={logoPreview || vendor.logo_url}
-                  alt="Preview"
-                  style={{ marginTop: '10px', width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ddd' }}
-                />
-              ) : null}
-            </div>
-
-            <input
-              type="text"
-              placeholder="Business Name"
-              value={profileBusinessName}
-              onChange={(e) => setProfileBusinessName(e.target.value)}
-              required
-            />
-            <textarea
-              placeholder="Business Description"
-              value={profileDescription}
-              onChange={(e) => setProfileDescription(e.target.value)}
-              rows={3}
-            />
-            <input
-              type="text"
-              placeholder="City"
-              value={profileCity}
-              onChange={(e) => setProfileCity(e.target.value)}
-            />
-            <input
-              type="text"
-              placeholder="Country"
-              value={profileCountry}
-              onChange={(e) => setProfileCountry(e.target.value)}
-            />
-            <input
-              type="text"
-              placeholder="WhatsApp Number (e.g. 2348001234567)"
-              value={profileWhatsapp}
-              onChange={(e) => setProfileWhatsapp(e.target.value)}
-            />
-            <button type="submit" disabled={profileSaving}>
-              {profileSaving ? 'Saving...' : 'Save Profile'}
-            </button>
-          </form>
-        )}
-        {profileMessage ? <p className="message">{profileMessage}</p> : null}
-      </div>
-
-      <div className="progress-section">
-        <h3>Progress to Free Month</h3>
-        <div className="progress-bar-container">
-          <div className="progress-bar" style={{ width: progress + '%' }}>
-            {progress > 10 ? Math.round(progress) + '%' : ''}
-          </div>
-        </div>
-        <p className="progress-text">
-          {isEligible
-            ? 'You have 100+ products! Claim your free month below.'
-            : productCount + ' of ' + requiredProducts + ' products (need ' + remaining + ' more)'}
-        </p>
-      </div>
-
-      {!alreadyClaimed && isEligible ? (
-        <div className="claim-section">
-          <button className="btn-claim" onClick={handleClaimFreeMonth} disabled={claimLoading}>
-            {claimLoading ? 'Processing...' : 'Claim Free Month'}
-          </button>
-          {claimMessage ? <p className="claim-message">{claimMessage}</p> : null}
-        </div>
-      ) : null}
-
-      {alreadyClaimed ? (
-        <div className="claimed-banner">
-          Free month already claimed!
-          {vendor.subscription_expires_at ? (
-            <p>Active until: {new Date(vendor.subscription_expires_at).toLocaleDateString()}</p>
-          ) : null}
-        </div>
-      ) : null}
-
-      <div className="upload-section">
-        <h2>Upload Product</h2>
-        <form onSubmit={handleUpload} className="upload-form">
-          <input
-            type="text"
-            placeholder="Product Name *"
-            value={productName}
-            onChange={(e) => setProductName(e.target.value)}
-            required
-          />
-          <textarea
-            placeholder="Product Description"
-            value={productDescription}
-            onChange={(e) => setProductDescription(e.target.value)}
-            rows={4}
-          />
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            style={{ width: '100%', padding: '12px 16px', margin: '10px 0', border: '1px solid #ddd', borderRadius: '8px', fontSize: '16px', fontFamily: 'inherit' }}
-          >
-            {CATEGORIES.map((cat) => (
-              <option key={cat.value} value={cat.value}>
-                {cat.label}
-              </option>
-            ))}
-          </select>
-          <input
-            type="number"
-            placeholder="Price (NGN)"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            step="0.01"
-            min="0"
-          />
-
-          <div style={{ margin: '10px 0' }}>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#555' }}>
-              Product Image
-            </label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleImageChange}
-              style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '14px' }}
-            />
-            {imagePreview ? (
-              <img
-                src={imagePreview}
-                alt="Preview"
-                style={{ marginTop: '10px', width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ddd' }}
-              />
-            ) : null}
-          </div>
-
-          <button type="submit" disabled={loading}>
-            {loading ? 'Uploading...' : 'Upload Product'}
-          </button>
-        </form>
-        {message ? <p className="message">{message}</p> : null}
-      </div>
-
-      <div className="products-section">
-        <h2>Your Products ({products.length})</h2>
-        {products.length === 0 ? (
-          <p className="no-products">No products yet. Upload your first product!</p>
-        ) : (
-          <div className="product-grid">
-            {products.map((product) => (
-              <div key={product.id} className="product-card">
-                {product.image_url ? (
-                  <img
-                    src={product.image_url}
-                    alt={product.name}
-                    style={{ width: '100%', height: '140px', objectFit: 'cover', borderRadius: '8px', marginBottom: '10px' }}
-                  />
-                ) : null}
-
-                {editingId === product.id ? (
-                  <div>
-                    <input
-                      type="text"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      style={{ width: '100%', padding: '8px 10px', margin: '6px 0', border: '1px solid #ddd', borderRadius: '6px', fontSize: '14px' }}
-                    />
-                    <textarea
-                      value={editDescription}
-                      onChange={(e) => setEditDescription(e.target.value)}
-                      rows={2}
-                      style={{ width: '100%', padding: '8px 10px', margin: '6px 0', border: '1px solid #ddd', borderRadius: '6px', fontSize: '14px', fontFamily: 'inherit' }}
-                    />
-                    <select
-                      value={editCategory}
-                      onChange={(e) => setEditCategory(e.target.value)}
-                      style={{ width: '100%', padding: '8px 10px', margin: '6px 0', border: '1px solid #ddd', borderRadius: '6px', fontSize: '14px' }}
-                    >
-                      {CATEGORIES.map((cat) => (
-                        <option key={cat.value} value={cat.value}>
-                          {cat.label}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="number"
-                      value={editPrice}
-                      onChange={(e) => setEditPrice(e.target.value)}
-                      step="0.01"
-                      min="0"
-                      style={{ width: '100%', padding: '8px 10px', margin: '6px 0', border: '1px solid #ddd', borderRadius: '6px', fontSize: '14px' }}
-                    />
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                      <button
-                        onClick={() => saveEdit(product.id)}
-                        disabled={editSaving}
-                        style={{ flex: 1, padding: '8px', background: '#E8752F', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', cursor: 'pointer' }}
-                      >
-                        {editSaving ? 'Saving...' : 'Save'}
-                      </button>
-                      <button
-                        onClick={cancelEdit}
-                        disabled={editSaving}
-                        style={{ flex: 1, padding: '8px', background: '#eee', color: '#333', border: 'none', borderRadius: '6px', fontSize: '13px', cursor: 'pointer' }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <h4>{product.name}</h4>
-                    {product.description ? (
-                      <p className="product-description">{product.description}</p>
-                    ) : null}
-                    <div className="product-meta">
-                      <span className="price">NGN {product.price}</span>
-                      <span className={'status ' + product.status}>
-                        {product.status}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                      <button
-                        onClick={() => startEdit(product)}
-                        style={{ flex: 1, padding: '8px', background: 'white', color: '#E8752F', border: '1px solid #E8752F', borderRadius: '6px', fontSize: '13px', cursor: 'pointer' }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(product.id)}
-                        disabled={deletingId === product.id}
-                        style={{ flex: 1, padding: '8px', background: 'white', color: '#dc3545', border: '1px solid #dc3545', borderRadius: '6px', fontSize: '13px', cursor: 'pointer' }}
-                      >
-                        {deletingId === product.id ? 'Deleting...' : 'Delete'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setProductDialogOpen(false)} disabled={productSaving}>
+              Cancel
+            </Button>
+            <Button onClick={saveProduct} disabled={productSaving}>
+              {productSaving ? "Saving..." : editingProductId ? "Save Changes" : "Add Product"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -6,9 +6,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { motion } from "framer-motion";
-import { Search, X, SlidersHorizontal, Loader2 } from "lucide-react";
+import { Search, X, SlidersHorizontal, Loader2, Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  FilterSidebar,
+  CATEGORIES,
+} from "@/components/browse/FilterSidebar";
+import { SortDropdown, SortOption } from "@/components/browse/SortDropdown";
+import { ProductRating } from "@/components/reviews/ProductRating";
 
 interface Product {
   id: string;
@@ -18,186 +31,329 @@ interface Product {
   category: string;
   price: number;
   image_url?: string | null;
+  created_at: string;
   vendor_profiles?: { business_name: string; city: string | null } | null;
 }
 
-const CATEGORIES = [
-  { id: "gift-boxes", name: "Gift Boxes", icon: "🎁" },
-  { id: "hampers", name: "Hampers", icon: "🧺" },
-  { id: "corporate", name: "Corporate Gifts", icon: "💼" },
-  { id: "souvenirs", name: "Souvenirs", icon: "🗺️" },
-  { id: "custom", name: "Custom Gifts", icon: "✨" },
-];
+interface ReviewStats {
+  product_id: string;
+  review_count: number;
+  avg_rating: number;
+}
 
 const BrowseGifts = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
+  const [reviewStats, setReviewStats] = useState<Record<string, ReviewStats>>({});
   const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
-  const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || "all");
-  const [showFilters, setShowFilters] = useState(false);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+
+  // Read state from URL
+  const searchQuery = searchParams.get("search") || "";
+  const selectedCategory = searchParams.get("category") || "all";
+  const sortBy = (searchParams.get("sort") as SortOption) || "newest";
+  const minPrice = searchParams.get("min") || "";
+  const maxPrice = searchParams.get("max") || "";
 
   useEffect(() => {
-    fetchProducts();
+    fetchData();
   }, []);
 
-  useEffect(() => {
-    const urlSearch = searchParams.get("search") || "";
-    const urlCategory = searchParams.get("category") || "all";
-    setSearchQuery(urlSearch);
-    setSelectedCategory(urlCategory);
-  }, [searchParams]);
-
-  const fetchProducts = async () => {
+  const fetchData = async () => {
     setIsLoading(true);
-    const { data, error } = await supabase
-      .from("products")
-      .select("*, vendor_profiles(business_name, city)")
-      .eq("is_active", true);
+    const [productsRes, reviewsRes] = await Promise.all([
+      supabase
+        .from("products")
+        .select("*, vendor_profiles(business_name, city)")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false }),
+      supabase.from("reviews").select("product_id, rating"),
+    ]);
 
-    if (error) {
-      console.error("Error fetching products:", error);
+    if (productsRes.error) {
+      console.error("Error fetching products:", productsRes.error);
     } else {
-      setProducts(data || []);
+      setProducts((productsRes.data as unknown as Product[]) || []);
     }
+
+    // Compute review stats client-side (small dataset friendly)
+    if (!reviewsRes.error && reviewsRes.data) {
+      const stats: Record<string, ReviewStats> = {};
+      for (const r of reviewsRes.data as { product_id: string; rating: number }[]) {
+        if (!stats[r.product_id]) {
+          stats[r.product_id] = { product_id: r.product_id, review_count: 0, avg_rating: 0 };
+        }
+        stats[r.product_id].review_count += 1;
+        stats[r.product_id].avg_rating += r.rating;
+      }
+      // convert sum → avg
+      for (const key of Object.keys(stats)) {
+        stats[key].avg_rating = stats[key].avg_rating / stats[key].review_count;
+      }
+      setReviewStats(stats);
+    }
+
     setIsLoading(false);
   };
 
+  // Update URL helper
+  const updateParam = (key: string, value: string) => {
+    const params = new URLSearchParams(searchParams);
+    if (value && value !== "all" && value !== "") {
+      params.set(key, value);
+    } else {
+      params.delete(key);
+    }
+    setSearchParams(params, { replace: true });
+  };
+
+  const handleSearchChange = (value: string) => updateParam("search", value);
+  const handleCategoryChange = (value: string) => updateParam("category", value);
+  const handleSortChange = (value: SortOption) => updateParam("sort", value);
+  const handleMinPriceChange = (value: string) => updateParam("min", value);
+  const handleMaxPriceChange = (value: string) => updateParam("max", value);
+
+  const resetFilters = () => setSearchParams({}, { replace: true });
+
+  // Compute filtered + sorted list
   const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
+    let list = products.filter((product) => {
       const matchesSearch =
+        !searchQuery ||
         product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (product.description || "").toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory = selectedCategory === "all" || product.category === selectedCategory;
-      return matchesSearch && matchesCategory;
+
+      const matchesCategory =
+        selectedCategory === "all" || product.category === selectedCategory;
+
+      const min = minPrice ? Number(minPrice) : 0;
+      const max = maxPrice ? Number(maxPrice) : Infinity;
+      const price = Number(product.price);
+      const matchesPrice = price >= min && price <= max;
+
+      return matchesSearch && matchesCategory && matchesPrice;
     });
-  }, [searchQuery, selectedCategory, products]);
+
+    // Sort
+    list = [...list].sort((a, b) => {
+      switch (sortBy) {
+        case "price-asc":
+          return Number(a.price) - Number(b.price);
+        case "price-desc":
+          return Number(b.price) - Number(a.price);
+        case "popular": {
+          const aCount = reviewStats[a.id]?.review_count ?? 0;
+          const bCount = reviewStats[b.id]?.review_count ?? 0;
+          if (bCount !== aCount) return bCount - aCount;
+          return (
+            (reviewStats[b.id]?.avg_rating ?? 0) -
+            (reviewStats[a.id]?.avg_rating ?? 0)
+          );
+        }
+        case "name-asc":
+          return a.name.localeCompare(b.name);
+        case "newest":
+        default:
+          return (
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+      }
+    });
+
+    return list;
+  }, [products, searchQuery, selectedCategory, sortBy, minPrice, maxPrice, reviewStats]);
 
   const formatPrice = (price: number) =>
-    new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(price);
+    new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: "NGN",
+      maximumFractionDigits: 0,
+    }).format(price);
 
-  const handleSearchChange = (value: string) => {
-    setSearchQuery(value);
-    const params = new URLSearchParams(searchParams);
-    if (value) {
-      params.set("search", value);
-    } else {
-      params.delete("search");
-    }
-    setSearchParams(params, { replace: true });
+  const hasActiveFilters =
+    !!searchQuery ||
+    selectedCategory !== "all" ||
+    sortBy !== "newest" ||
+    !!minPrice ||
+    !!maxPrice;
+
+  const sidebarProps = {
+    selectedCategory,
+    onCategoryChange: handleCategoryChange,
+    minPrice,
+    maxPrice,
+    onMinPriceChange: handleMinPriceChange,
+    onMaxPriceChange: handleMaxPriceChange,
+    onReset: resetFilters,
+    hasActiveFilters,
   };
-
-  const handleCategoryChange = (categoryId: string) => {
-    setSelectedCategory(categoryId);
-    const params = new URLSearchParams(searchParams);
-    if (categoryId !== "all") {
-      params.set("category", categoryId);
-    } else {
-      params.delete("category");
-    }
-    setSearchParams(params, { replace: true });
-  };
-
-  const resetFilters = () => {
-    setSearchQuery("");
-    setSelectedCategory("all");
-    setSearchParams({}, { replace: true });
-  };
-
-  const hasActiveFilters = searchQuery || selectedCategory !== "all";
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-canvas-50">
       <Header />
       <main className="flex-1">
-        <section className="bg-gradient-to-b from-primary/5 to-background py-12 md:py-16">
+        {/* Hero */}
+        <section className="border-b border-canvas-200 bg-gradient-to-b from-navy-800 to-navy-900 py-12 md:py-16">
           <div className="container">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mx-auto max-w-3xl text-center">
-              <h1 className="font-heading text-3xl font-bold text-foreground md:text-4xl lg:text-5xl">
-                Discover Perfect <span className="text-gradient-gold">Gifts</span>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mx-auto max-w-3xl text-center"
+            >
+              <h1 className="font-heading text-3xl font-bold text-canvas-50 md:text-4xl lg:text-5xl">
+                Discover Perfect{" "}
+                <span className="text-gold-500">Gifts</span>
               </h1>
-              <p className="mt-4 text-muted-foreground md:text-lg">
-                Browse our curated collection of premium gifts from trusted vendors
+              <p className="mt-4 text-canvas-100/80 md:text-lg">
+                Browse our curated collection of premium gifts from trusted
+                vendors
               </p>
             </motion.div>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="mx-auto mt-8 max-w-2xl">
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="mx-auto mt-8 max-w-2xl"
+            >
               <div className="relative">
-                <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-navy-400" />
                 <Input
                   type="text"
                   placeholder="Search gifts..."
                   value={searchQuery}
                   onChange={(e) => handleSearchChange(e.target.value)}
-                  className="h-14 rounded-2xl border-border bg-background pl-12 pr-4 text-base shadow-soft"
+                  className="h-14 rounded-2xl border-0 bg-canvas-50 pl-12 pr-4 text-base shadow-lg placeholder:text-navy-400"
                 />
               </div>
             </motion.div>
           </div>
         </section>
 
+        {/* Main content */}
         <section className="py-8 md:py-12">
           <div className="container">
-            <div className="mb-6 flex items-center justify-between md:hidden">
-              <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)} className="gap-2">
-                <SlidersHorizontal className="h-4 w-4" />
-                Categories
-              </Button>
-              {hasActiveFilters && (
-                <Button variant="ghost" size="sm" onClick={resetFilters}>
-                  <X className="mr-1 h-4 w-4" />
-                  Clear
-                </Button>
-              )}
-            </div>
-
-            <div className={`mb-8 flex-wrap gap-3 ${showFilters ? "flex" : "hidden md:flex"}`}>
-              <Button variant={selectedCategory === "all" ? "gold" : "outline"} size="sm" onClick={() => handleCategoryChange("all")} className="rounded-full">
-                All Gifts
-              </Button>
-              {CATEGORIES.map((category) => (
-                <Button
-                  key={category.id}
-                  variant={selectedCategory === category.id ? "gold" : "outline"}
-                  size="sm"
-                  onClick={() => handleCategoryChange(category.id)}
-                  className="gap-2 rounded-full"
-                >
-                  <span>{category.icon}</span>
-                  {category.name}
-                </Button>
-              ))}
-            </div>
-
-            <div className="mb-6 flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                Showing <span className="font-semibold text-foreground">{filteredProducts.length}</span> gifts
-              </p>
-              {hasActiveFilters && (
-                <Button variant="ghost" size="sm" onClick={resetFilters} className="hidden md:flex">
-                  <X className="mr-1 h-4 w-4" />
-                  Reset Filters
-                </Button>
-              )}
-            </div>
-
-            {isLoading ? (
-              <div className="flex h-40 items-center justify-center">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <div className="grid gap-8 lg:grid-cols-[260px_1fr]">
+              {/* Desktop sidebar */}
+              <div className="hidden lg:block">
+                <div className="sticky top-24 rounded-2xl border border-canvas-200 bg-white p-5 shadow-sm">
+                  <FilterSidebar {...sidebarProps} />
+                </div>
               </div>
-            ) : filteredProducts.length > 0 ? (
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {filteredProducts.map((product, index) => (
-                  <ProductCard key={product.id} product={product} index={index} formatPrice={formatPrice} />
-                ))}
+
+              {/* Main column */}
+              <div>
+                {/* Mobile filter + Sort row */}
+                <div className="mb-6 flex items-center justify-between gap-3">
+                  {/* Mobile — filter drawer trigger */}
+                  <Sheet
+                    open={showMobileFilters}
+                    onOpenChange={setShowMobileFilters}
+                  >
+                    <SheetTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2 rounded-full border-canvas-200 lg:hidden"
+                      >
+                        <SlidersHorizontal className="h-4 w-4" />
+                        Filters
+                        {hasActiveFilters && (
+                          <span className="ml-1 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-gold-500 px-1 text-[10px] font-bold text-navy-900">
+                            !
+                          </span>
+                        )}
+                      </Button>
+                    </SheetTrigger>
+                    <SheetContent
+                      side="left"
+                      className="w-full overflow-y-auto bg-white p-5 sm:max-w-sm"
+                    >
+                      <SheetHeader className="mb-4">
+                        <SheetTitle className="font-heading text-navy-800">
+                          Filters
+                        </SheetTitle>
+                      </SheetHeader>
+                      <FilterSidebar {...sidebarProps} />
+                    </SheetContent>
+                  </Sheet>
+
+                  {/* Count */}
+                  <p className="flex-1 text-sm text-muted-foreground lg:text-left">
+                    Showing{" "}
+                    <span className="font-semibold text-navy-800">
+                      {filteredProducts.length}
+                    </span>{" "}
+                    gift{filteredProducts.length === 1 ? "" : "s"}
+                  </p>
+
+                  {/* Sort dropdown */}
+                  <SortDropdown value={sortBy} onChange={handleSortChange} />
+                </div>
+
+                {/* Active filter chips */}
+                {hasActiveFilters && (
+                  <div className="mb-4 flex flex-wrap items-center gap-2">
+                    {searchQuery && (
+                      <Chip
+                        label={`Search: "${searchQuery}"`}
+                        onRemove={() => handleSearchChange("")}
+                      />
+                    )}
+                    {selectedCategory !== "all" && (
+                      <Chip
+                        label={
+                          CATEGORIES.find((c) => c.id === selectedCategory)
+                            ?.name ?? selectedCategory
+                        }
+                        onRemove={() => handleCategoryChange("all")}
+                      />
+                    )}
+                    {(minPrice || maxPrice) && (
+                      <Chip
+                        label={`₦${minPrice || "0"} – ₦${maxPrice || "∞"}`}
+                        onRemove={() => {
+                          handleMinPriceChange("");
+                          handleMaxPriceChange("");
+                        }}
+                      />
+                    )}
+                  </div>
+                )}
+
+                {/* Grid */}
+                {isLoading ? (
+                  <div className="flex h-40 items-center justify-center">
+                    <Loader2 className="h-6 w-6 animate-spin text-gold-500" />
+                  </div>
+                ) : filteredProducts.length > 0 ? (
+                  <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    {filteredProducts.map((product, index) => (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        index={index}
+                        formatPrice={formatPrice}
+                        reviewStats={reviewStats[product.id]}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-canvas-300 bg-white py-16 text-center">
+                    <p className="text-lg text-muted-foreground">
+                      No gifts found matching your criteria
+                    </p>
+                    <Button
+                      variant="gold"
+                      onClick={resetFilters}
+                      className="mt-4"
+                    >
+                      Clear Filters
+                    </Button>
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="py-16 text-center">
-                <p className="text-lg text-muted-foreground">No gifts found matching your criteria</p>
-                <Button variant="outline" onClick={resetFilters} className="mt-4">
-                  Clear Filters
-                </Button>
-              </div>
-            )}
+            </div>
           </div>
         </section>
       </main>
@@ -206,30 +362,86 @@ const BrowseGifts = () => {
   );
 };
 
-const ProductCard = ({ product, index, formatPrice }: { product: Product; index: number; formatPrice: (p: number) => string }) => {
-  const categoryLabel = CATEGORIES.find((c) => c.id === product.category)?.name || product.category;
+/* ---------- Sub-components ---------- */
+
+function Chip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-gold-300 bg-gold-100 px-3 py-1 text-xs font-medium text-gold-700">
+      {label}
+      <button
+        type="button"
+        onClick={onRemove}
+        className="rounded-full p-0.5 hover:bg-gold-300/50"
+        aria-label="Remove filter"
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </span>
+  );
+}
+
+const ProductCard = ({
+  product,
+  index,
+  formatPrice,
+  reviewStats,
+}: {
+  product: Product;
+  index: number;
+  formatPrice: (p: number) => string;
+  reviewStats?: ReviewStats;
+}) => {
+  const categoryLabel =
+    CATEGORIES.find((c) => c.id === product.category)?.name || product.category;
 
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05 }}
+    >
       <Link to={`/gifts/${product.id}`}>
-        <Card className="group h-full overflow-hidden border-border bg-card transition-all duration-300 hover:shadow-medium">
-          <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+        <Card className="group h-full overflow-hidden border-canvas-200 bg-white transition-all duration-300 hover:-translate-y-0.5 hover:border-gold-300 hover:shadow-lg">
+          <div className="relative aspect-[4/3] overflow-hidden bg-canvas-100">
             {product.image_url ? (
-              <img src={product.image_url} alt={product.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+              <img
+                src={product.image_url}
+                alt={product.name}
+                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+              />
             ) : (
-              <div className="flex h-full items-center justify-center text-4xl">🎁</div>
+              <div className="flex h-full items-center justify-center text-4xl">
+                🎁
+              </div>
             )}
-            <Badge className="absolute left-3 top-3 bg-background/90 text-foreground backdrop-blur-sm">{categoryLabel}</Badge>
+            <Badge className="absolute left-3 top-3 rounded-full border-gold-300 bg-gold-100 text-[11px] font-semibold text-gold-700 backdrop-blur-sm hover:bg-gold-100">
+              {categoryLabel}
+            </Badge>
           </div>
           <CardContent className="p-4">
-            <h3 className="font-heading text-lg font-semibold text-foreground line-clamp-1 group-hover:text-primary transition-colors">
+            <h3 className="line-clamp-1 font-heading text-lg font-semibold text-navy-800 transition-colors group-hover:text-gold-600">
               {product.name}
             </h3>
-            <p className="mt-1 text-base font-bold text-primary">{formatPrice(product.price)}</p>
+
+            {reviewStats && reviewStats.review_count > 0 && (
+              <div className="mt-1.5">
+                <ProductRating
+                  rating={reviewStats.avg_rating}
+                  count={reviewStats.review_count}
+                  size="sm"
+                />
+              </div>
+            )}
+
+            <p className="mt-2 font-heading text-base font-bold text-gold-600">
+              {formatPrice(product.price)}
+            </p>
+
             {product.vendor_profiles && (
-              <p className="mt-2 text-sm text-muted-foreground truncate">
+              <p className="mt-2 truncate text-sm text-muted-foreground">
                 {product.vendor_profiles.business_name}
-                {product.vendor_profiles.city && ` • ${product.vendor_profiles.city}`}
+                {product.vendor_profiles.city &&
+                  ` • ${product.vendor_profiles.city}`}
               </p>
             )}
           </CardContent>

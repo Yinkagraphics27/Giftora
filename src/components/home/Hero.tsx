@@ -57,7 +57,7 @@ function RotatingWord() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -12 }}
           transition={{ duration: 0.55, ease: "easeOut" }}
-          className="inline-block text-white"
+          className="inline-block text-gold-500"
         >
           {rotatingWords[index]}
         </motion.span>
@@ -86,7 +86,7 @@ function LiveShowcase() {
       className="relative mt-2 flex justify-center lg:mt-0 lg:h-full lg:items-center lg:justify-center"
     >
       <div className="w-full max-w-sm lg:max-w-md">
-        <div className="relative aspect-[4/5] w-full overflow-hidden rounded-3xl border-4 border-white/20 shadow-2xl">
+        <div className="relative aspect-[4/5] w-full overflow-hidden rounded-3xl border-4 border-gold-500/40 shadow-2xl">
           <AnimatePresence mode="wait">
             <motion.img
               key={current.image}
@@ -99,10 +99,10 @@ function LiveShowcase() {
               className="absolute inset-0 h-full w-full object-cover"
             />
           </AnimatePresence>
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-navy-900/85 via-navy-900/20 to-transparent" />
 
           <div className="absolute bottom-0 left-0 right-0 p-6">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-gold-500/20 px-3 py-1 text-xs font-medium text-gold-400 backdrop-blur-sm border border-gold-500/30">
               {current.label}
             </span>
             <AnimatePresence mode="wait">
@@ -112,7 +112,7 @@ function LiveShowcase() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.4 }}
-                className="mt-3 font-heading text-xl font-bold text-white"
+                className="mt-3 font-heading text-xl font-bold text-canvas-50"
               >
                 {current.caption}
               </motion.p>
@@ -125,7 +125,7 @@ function LiveShowcase() {
             <div
               key={s.label}
               className={`h-1 flex-1 rounded-full transition-colors duration-300 ${
-                i === index ? "bg-white" : "bg-white/25"
+                i === index ? "bg-gold-500" : "bg-canvas-50/25"
               }`}
             />
           ))}
@@ -157,14 +157,16 @@ export function Hero() {
   };
 
   return (
-    <section className="relative overflow-hidden bg-[#E8752F]">
+    <section className="relative overflow-hidden bg-navy-800">
       <div className="absolute inset-0 z-0">
         <img
           src={heroBg}
           alt="Premium gift boxes"
-          className="h-full w-full object-cover opacity-15"
+          className="h-full w-full object-cover opacity-10"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#E8752F] via-[#E8752F]/95 to-[#E8752F]/70" />
+        <div className="absolute inset-0 bg-gradient-to-r from-navy-900 via-navy-800/95 to-navy-800/70" />
+        {/* Subtle gold glow accent */}
+        <div className="absolute -right-40 top-1/2 h-[600px] w-[600px] -translate-y-1/2 rounded-full bg-gold-500/10 blur-3xl" />
       </div>
 
       <div className="container relative z-10 py-16 md:py-24 lg:py-28">
@@ -174,10 +176,10 @@ export function Hero() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="mb-6 inline-flex w-fit items-center gap-2 rounded-full border border-white/30 bg-white/10 px-4 py-2 backdrop-blur-sm"
+              className="mb-6 inline-flex w-fit items-center gap-2 rounded-full border border-gold-500/40 bg-gold-500/10 px-4 py-2 backdrop-blur-sm"
             >
-              <Sparkles className="h-4 w-4 text-white" />
-              <span className="text-sm font-medium text-white">
+              <Sparkles className="h-4 w-4 text-gold-500" />
+              <span className="text-sm font-medium text-gold-400">
                 Premium Gift Marketplace
               </span>
             </motion.div>
@@ -186,7 +188,7 @@ export function Hero() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
-              className="font-heading text-4xl font-bold leading-tight tracking-tight text-white md:text-5xl lg:text-[3.25rem]"
+              className="font-heading text-4xl font-bold leading-tight tracking-tight text-canvas-50 md:text-5xl lg:text-[3.25rem]"
             >
               Discover Perfect <RotatingWord /> Worldwide
             </motion.h1>
@@ -195,7 +197,7 @@ export function Hero() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
-              className="mt-6 max-w-xl text-lg text-white/85"
+              className="mt-6 max-w-xl text-lg text-canvas-100/85"
             >
               Browse curated gift boxes, hampers, souvenirs, and custom gifts from verified vendors —
               or join as a vendor to grow your gift business.
@@ -215,10 +217,14 @@ export function Hero() {
                   placeholder="Search for gift boxes, hampers..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-12 rounded-full border-0 bg-white pl-10 text-foreground shadow-soft"
+                  className="h-12 rounded-full border-0 bg-canvas-50 pl-10 text-navy-800 shadow-soft placeholder:text-navy-400"
                 />
               </div>
-              <Button type="submit" size="lg" className="rounded-full bg-white px-6 text-[#E8752F] hover:bg-white/90">
+              <Button
+                type="submit"
+                size="lg"
+                className="rounded-full bg-gold-500 px-6 text-navy-900 font-semibold hover:bg-gold-400"
+              >
                 Search
               </Button>
             </motion.form>
@@ -228,9 +234,10 @@ export function Hero() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.5, delay: 0.3 }}
-                className="mt-3 text-sm text-white/80"
+                className="mt-3 text-sm text-canvas-100/75"
               >
-                <span className="font-semibold text-white">{vendorCount}</span> verified vendor{vendorCount !== 1 ? "s" : ""} ready to serve you
+                <span className="font-semibold text-gold-400">{vendorCount}</span> verified vendor
+                {vendorCount !== 1 ? "s" : ""} ready to serve you
               </motion.p>
             )}
 
@@ -240,16 +247,23 @@ export function Hero() {
               transition={{ duration: 0.5, delay: 0.35 }}
               className="mt-8 flex flex-col gap-4 sm:flex-row"
             >
-              <Button size="xl" className="bg-white text-[#E8752F] hover:bg-white/90" asChild>
+              {/* PRIMARY CTA — Champagne Gold */}
+              <Button
+                size="xl"
+                className="bg-gold-500 text-navy-900 font-semibold hover:bg-gold-400 shadow-lg"
+                asChild
+              >
                 <Link to="/browse">
                   Browse Gifts
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
+
+              {/* SECONDARY CTA — Gold outline on navy */}
               <Button
                 variant="outline"
                 size="xl"
-                className="border-white/40 text-white hover:bg-white/10"
+                className="border-gold-500/60 bg-transparent text-gold-400 hover:bg-gold-500 hover:text-navy-900 font-semibold"
                 asChild
               >
                 <Link to="/register">Join as Vendor</Link>
@@ -272,15 +286,15 @@ export function Hero() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.4, delay: 0.5 + index * 0.1 }}
-              className="group rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-sm transition-all duration-300 hover:border-white/40 hover:bg-white/15"
+              className="group rounded-2xl border border-gold-500/20 bg-navy-700/40 p-4 backdrop-blur-sm transition-all duration-300 hover:border-gold-500/50 hover:bg-navy-700/60"
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white shadow-soft">
-                <point.icon className="h-6 w-6 text-[#E8752F]" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gold-500 shadow-soft">
+                <point.icon className="h-6 w-6 text-navy-900" />
               </div>
-              <h3 className="mt-3 font-heading text-lg font-bold text-white">
+              <h3 className="mt-3 font-heading text-lg font-bold text-canvas-50">
                 {point.title}
               </h3>
-              <p className="mt-1 text-sm text-white/75">
+              <p className="mt-1 text-sm text-canvas-100/75">
                 {point.description}
               </p>
             </motion.div>
