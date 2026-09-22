@@ -17,9 +17,13 @@ import OrderConfirmation from './pages/OrderConfirmation';
 import MyOrders from './pages/MyOrders';
 import SignIn from './pages/SignIn';
 import SignUp from './pages/SignUp';
+import Wishlist from './pages/Wishlist';
+import Messages from './pages/Messages';
+import Account from './pages/Account';
+import Occasions from './pages/Occasions';
+import OccasionPage from './pages/OccasionPage';
 import { Toaster } from '@/components/ui/sonner';
 
-// Admin Console
 import { AdminLayout } from '@/layouts/AdminLayout';
 import { AdminOverview } from './pages/admin/AdminOverview';
 import { AdminVendors } from './pages/admin/AdminVendors';
@@ -34,12 +38,13 @@ function App() {
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/browse" element={<BrowseGifts />} />
+        <Route path="/occasions" element={<Occasions />} />
+        <Route path="/occasions/:id" element={<OccasionPage />} />
         <Route path="/vendors" element={<Vendors />} />
         <Route path="/vendors/:id" element={<VendorProfile />} />
         <Route path="/gifts/:id" element={<ProductDetail />} />
         <Route path="/categories" element={<CategoriesPage />} />
 
-        {/* AUTH */}
         <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
         <Route path="/register" element={<Register />} />
@@ -51,12 +56,13 @@ function App() {
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/order/:id" element={<OrderConfirmation />} />
         <Route path="/my-orders" element={<MyOrders />} />
+        <Route path="/wishlist" element={<Wishlist />} />
+        <Route path="/messages" element={<Messages />} />
+        <Route path="/account" element={<Account />} />
 
-        {/* LEGACY */}
         <Route path="/internal-admin-review" element={<Navigate to="/admin/vendors" replace />} />
         <Route path="/admin-dashboard" element={<Navigate to="/admin" replace />} />
 
-        {/* ADMIN */}
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminOverview />} />
           <Route path="vendors" element={<AdminVendors />} />

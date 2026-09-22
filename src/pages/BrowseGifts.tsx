@@ -14,12 +14,9 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { motion } from "framer-motion";
-import { Search, X, SlidersHorizontal, Loader2, Star } from "lucide-react";
+import { Search, X, SlidersHorizontal, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  FilterSidebar,
-  CATEGORIES,
-} from "@/components/browse/FilterSidebar";
+import { FilterSidebar } from "@/components/browse/FilterSidebar";
 import { SortDropdown, SortOption } from "@/components/browse/SortDropdown";
 import { ProductRating } from "@/components/reviews/ProductRating";
 
@@ -32,6 +29,7 @@ interface Product {
   price: number;
   image_url?: string | null;
   created_at: string;
+  occasions: string[];
   vendor_profiles?: { business_name: string; city: string | null } | null;
 }
 
@@ -41,16 +39,22 @@ interface ReviewStats {
   avg_rating: number;
 }
 
+interface OccasionLookup {
+  id: string;
+  name: string;
+  icon: string;
+}
+
 const BrowseGifts = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [reviewStats, setReviewStats] = useState<Record<string, ReviewStats>>({});
+  const [occasionLookup, setOccasionLookup] = useState<Record<string, OccasionLookup>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
-  // Read state from URL
   const searchQuery = searchParams.get("search") || "";
-  const selectedCategory = searchParams.get("category") || "all";
+  const selectedOccasion = searchParams.get("occasion") || "all";
   const sortBy = (searchParams.get("sort") as SortOption) || "newest";
   const minPrice = searchParams.get("min") || "";
   const maxPrice = searchParams.get("max") || "";
@@ -61,13 +65,14 @@ const BrowseGifts = () => {
 
   const fetchData = async () => {
     setIsLoading(true);
-    const [productsRes, reviewsRes] = await Promise.all([
+    const [productsRes, reviewsRes, occasionsRes] = await Promise.all([
       supabase
         .from("products")
         .select("*, vendor_profiles(business_name, city)")
         .eq("is_active", true)
         .order("created_at", { ascending: false }),
       supabase.from("reviews").select("product_id, rating"),
+      supabase.from("occasions").select("id, name, icon").eq("is_active", true),
     ]);
 
     if (productsRes.error) {
@@ -76,7 +81,6 @@ const BrowseGifts = () => {
       setProducts((productsRes.data as unknown as Product[]) || []);
     }
 
-    // Compute review stats client-side (small dataset friendly)
     if (!reviewsRes.error && reviewsRes.data) {
       const stats: Record<string, ReviewStats> = {};
       for (const r of reviewsRes.data as { product_id: string; rating: number }[]) {
@@ -86,17 +90,23 @@ const BrowseGifts = () => {
         stats[r.product_id].review_count += 1;
         stats[r.product_id].avg_rating += r.rating;
       }
-      // convert sum → avg
       for (const key of Object.keys(stats)) {
         stats[key].avg_rating = stats[key].avg_rating / stats[key].review_count;
       }
       setReviewStats(stats);
     }
 
+    if (!occasionsRes.error && occasionsRes.data) {
+      const lookup: Record<string, OccasionLookup> = {};
+      for (const o of occasionsRes.data as OccasionLookup[]) {
+        lookup[o.id] = o;
+      }
+      setOccasionLookup(lookup);
+    }
+
     setIsLoading(false);
   };
 
-  // Update URL helper
   const updateParam = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams);
     if (value && value !== "all" && value !== "") {
@@ -107,15 +117,13 @@ const BrowseGifts = () => {
     setSearchParams(params, { replace: true });
   };
 
-  const handleSearchChange = (value: string) => updateParam("search", value);
-  const handleCategoryChange = (value: string) => updateParam("category", value);
-  const handleSortChange = (value: SortOption) => updateParam("sort", value);
-  const handleMinPriceChange = (value: string) => updateParam("min", value);
-  const handleMaxPriceChange = (value: string) => updateParam("max", value);
-
+  const handleSearchChange = (v: string) => updateParam("search", v);
+  const handleOccasionChange = (v: string) => updateParam("occasion", v);
+  const handleSortChange = (v: SortOption) => updateParam("sort", v);
+  const handleMinPriceChange = (v: string) => updateParam("min", v);
+  const handleMaxPriceChange = (v: string) => updateParam("max", v);
   const resetFilters = () => setSearchParams({}, { replace: true });
 
-  // Compute filtered + sorted list
   const filteredProducts = useMemo(() => {
     let list = products.filter((product) => {
       const matchesSearch =
@@ -123,18 +131,18 @@ const BrowseGifts = () => {
         product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (product.description || "").toLowerCase().includes(searchQuery.toLowerCase());
 
-      const matchesCategory =
-        selectedCategory === "all" || product.category === selectedCategory;
+      const matchesOccasion =
+        selectedOccasion === "all" ||
+        (product.occasions || []).includes(selectedOccasion);
 
       const min = minPrice ? Number(minPrice) : 0;
       const max = maxPrice ? Number(maxPrice) : Infinity;
       const price = Number(product.price);
       const matchesPrice = price >= min && price <= max;
 
-      return matchesSearch && matchesCategory && matchesPrice;
+      return matchesSearch && matchesOccasion && matchesPrice;
     });
 
-    // Sort
     list = [...list].sort((a, b) => {
       switch (sortBy) {
         case "price-asc":
@@ -145,23 +153,18 @@ const BrowseGifts = () => {
           const aCount = reviewStats[a.id]?.review_count ?? 0;
           const bCount = reviewStats[b.id]?.review_count ?? 0;
           if (bCount !== aCount) return bCount - aCount;
-          return (
-            (reviewStats[b.id]?.avg_rating ?? 0) -
-            (reviewStats[a.id]?.avg_rating ?? 0)
-          );
+          return (reviewStats[b.id]?.avg_rating ?? 0) - (reviewStats[a.id]?.avg_rating ?? 0);
         }
         case "name-asc":
           return a.name.localeCompare(b.name);
         case "newest":
         default:
-          return (
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          );
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       }
     });
 
     return list;
-  }, [products, searchQuery, selectedCategory, sortBy, minPrice, maxPrice, reviewStats]);
+  }, [products, searchQuery, selectedOccasion, sortBy, minPrice, maxPrice, reviewStats]);
 
   const formatPrice = (price: number) =>
     new Intl.NumberFormat("en-NG", {
@@ -172,14 +175,14 @@ const BrowseGifts = () => {
 
   const hasActiveFilters =
     !!searchQuery ||
-    selectedCategory !== "all" ||
+    selectedOccasion !== "all" ||
     sortBy !== "newest" ||
     !!minPrice ||
     !!maxPrice;
 
   const sidebarProps = {
-    selectedCategory,
-    onCategoryChange: handleCategoryChange,
+    selectedOccasion,
+    onOccasionChange: handleOccasionChange,
     minPrice,
     maxPrice,
     onMinPriceChange: handleMinPriceChange,
@@ -192,7 +195,6 @@ const BrowseGifts = () => {
     <div className="flex min-h-screen flex-col bg-canvas-50">
       <Header />
       <main className="flex-1">
-        {/* Hero */}
         <section className="border-b border-canvas-200 bg-gradient-to-b from-navy-800 to-navy-900 py-12 md:py-16">
           <div className="container">
             <motion.div
@@ -201,12 +203,10 @@ const BrowseGifts = () => {
               className="mx-auto max-w-3xl text-center"
             >
               <h1 className="font-heading text-3xl font-bold text-canvas-50 md:text-4xl lg:text-5xl">
-                Discover Perfect{" "}
-                <span className="text-gold-500">Gifts</span>
+                Discover Perfect <span className="text-gold-500">Gifts</span>
               </h1>
               <p className="mt-4 text-canvas-100/80 md:text-lg">
-                Browse our curated collection of premium gifts from trusted
-                vendors
+                Browse our curated collection of premium gifts from trusted vendors
               </p>
             </motion.div>
 
@@ -230,26 +230,18 @@ const BrowseGifts = () => {
           </div>
         </section>
 
-        {/* Main content */}
         <section className="py-8 md:py-12">
           <div className="container">
             <div className="grid gap-8 lg:grid-cols-[260px_1fr]">
-              {/* Desktop sidebar */}
               <div className="hidden lg:block">
                 <div className="sticky top-24 rounded-2xl border border-canvas-200 bg-white p-5 shadow-sm">
                   <FilterSidebar {...sidebarProps} />
                 </div>
               </div>
 
-              {/* Main column */}
               <div>
-                {/* Mobile filter + Sort row */}
                 <div className="mb-6 flex items-center justify-between gap-3">
-                  {/* Mobile — filter drawer trigger */}
-                  <Sheet
-                    open={showMobileFilters}
-                    onOpenChange={setShowMobileFilters}
-                  >
+                  <Sheet open={showMobileFilters} onOpenChange={setShowMobileFilters}>
                     <SheetTrigger asChild>
                       <Button
                         variant="outline"
@@ -278,7 +270,6 @@ const BrowseGifts = () => {
                     </SheetContent>
                   </Sheet>
 
-                  {/* Count */}
                   <p className="flex-1 text-sm text-muted-foreground lg:text-left">
                     Showing{" "}
                     <span className="font-semibold text-navy-800">
@@ -287,26 +278,22 @@ const BrowseGifts = () => {
                     gift{filteredProducts.length === 1 ? "" : "s"}
                   </p>
 
-                  {/* Sort dropdown */}
                   <SortDropdown value={sortBy} onChange={handleSortChange} />
                 </div>
 
-                {/* Active filter chips */}
                 {hasActiveFilters && (
                   <div className="mb-4 flex flex-wrap items-center gap-2">
                     {searchQuery && (
-                      <Chip
-                        label={`Search: "${searchQuery}"`}
-                        onRemove={() => handleSearchChange("")}
-                      />
+                      <Chip label={`Search: "${searchQuery}"`} onRemove={() => handleSearchChange("")} />
                     )}
-                    {selectedCategory !== "all" && (
+                    {selectedOccasion !== "all" && (
                       <Chip
                         label={
-                          CATEGORIES.find((c) => c.id === selectedCategory)
-                            ?.name ?? selectedCategory
+                          occasionLookup[selectedOccasion]
+                            ? `${occasionLookup[selectedOccasion].icon} ${occasionLookup[selectedOccasion].name}`
+                            : selectedOccasion
                         }
-                        onRemove={() => handleCategoryChange("all")}
+                        onRemove={() => handleOccasionChange("all")}
                       />
                     )}
                     {(minPrice || maxPrice) && (
@@ -321,7 +308,6 @@ const BrowseGifts = () => {
                   </div>
                 )}
 
-                {/* Grid */}
                 {isLoading ? (
                   <div className="flex h-40 items-center justify-center">
                     <Loader2 className="h-6 w-6 animate-spin text-gold-500" />
@@ -343,11 +329,7 @@ const BrowseGifts = () => {
                     <p className="text-lg text-muted-foreground">
                       No gifts found matching your criteria
                     </p>
-                    <Button
-                      variant="gold"
-                      onClick={resetFilters}
-                      className="mt-4"
-                    >
+                    <Button variant="gold" onClick={resetFilters} className="mt-4">
                       Clear Filters
                     </Button>
                   </div>
@@ -361,8 +343,6 @@ const BrowseGifts = () => {
     </div>
   );
 };
-
-/* ---------- Sub-components ---------- */
 
 function Chip({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
@@ -391,9 +371,6 @@ const ProductCard = ({
   formatPrice: (p: number) => string;
   reviewStats?: ReviewStats;
 }) => {
-  const categoryLabel =
-    CATEGORIES.find((c) => c.id === product.category)?.name || product.category;
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -410,13 +387,8 @@ const ProductCard = ({
                 className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
             ) : (
-              <div className="flex h-full items-center justify-center text-4xl">
-                🎁
-              </div>
+              <div className="flex h-full items-center justify-center text-4xl">🎁</div>
             )}
-            <Badge className="absolute left-3 top-3 rounded-full border-gold-300 bg-gold-100 text-[11px] font-semibold text-gold-700 backdrop-blur-sm hover:bg-gold-100">
-              {categoryLabel}
-            </Badge>
           </div>
           <CardContent className="p-4">
             <h3 className="line-clamp-1 font-heading text-lg font-semibold text-navy-800 transition-colors group-hover:text-gold-600">
@@ -440,8 +412,7 @@ const ProductCard = ({
             {product.vendor_profiles && (
               <p className="mt-2 truncate text-sm text-muted-foreground">
                 {product.vendor_profiles.business_name}
-                {product.vendor_profiles.city &&
-                  ` • ${product.vendor_profiles.city}`}
+                {product.vendor_profiles.city && ` • ${product.vendor_profiles.city}`}
               </p>
             )}
           </CardContent>
