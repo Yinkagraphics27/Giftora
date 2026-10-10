@@ -4,81 +4,83 @@ import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
-interface Occasion {
+interface Category {
   id: string;
   name: string;
   icon: string;
-  group_name: string;
-  color: "canvas" | "gold" | "navy";
+  color: string;
   sort_order: number;
+  image_url?: string | null;
 }
 
-const GROUP_LABELS: Record<string, { title: string; subtitle: string }> = {
-  seasonal: {
-    title: "Seasonal & Religious",
-    subtitle: "Celebrate the moments that come around every year",
-  },
-  "life-events": {
-    title: "Life Events",
-    subtitle: "Milestones worth marking with a gift",
-  },
-  personal: {
-    title: "Personal Occasions",
-    subtitle: "Small gestures, big meaning",
-  },
-  corporate: {
-    title: "Corporate & Professional",
-    subtitle: "Thoughtful gifts for clients, teams & partners",
-  },
-  cultural: {
-    title: "Cultural Celebrations",
-    subtitle: "Honour traditions with meaningful gifts",
-  },
-  other: {
-    title: "More Ways to Gift",
-    subtitle: "Unique finds for every reason",
-  },
+/**
+ * Card background palette — matches mockup pastels.
+ */
+const COLOR_CLASSES: Record<string, string> = {
+  canvas: "bg-canvas-100",
+  gold: "bg-gold-100",
+  navy: "bg-navy-100",
+  pink: "bg-rose-100",
+  mint: "bg-emerald-100",
+  peach: "bg-orange-100",
+  lavender: "bg-purple-100",
+  blue: "bg-sky-100",
+  cream: "bg-[#F5EFE0]",
+  "dark-green": "bg-emerald-700",
 };
 
-const GROUP_ORDER = [
-  "seasonal",
-  "life-events",
-  "personal",
-  "corporate",
-  "cultural",
-  "other",
-];
-
-const COLOR_CLASSES: Record<Occasion["color"], string> = {
-  canvas: "bg-canvas-100 ring-1 ring-canvas-200",
-  gold: "bg-gold-100 ring-1 ring-gold-300",
-  navy: "bg-navy-700/10 ring-1 ring-navy-800/10",
-};
-
-// Fallback in case DB fetch fails
-const FALLBACK: Occasion[] = [
-  { id: "christmas", name: "Christmas", icon: "🎄", group_name: "seasonal", color: "gold", sort_order: 1 },
-  { id: "new-year", name: "New Year", icon: "🎆", group_name: "seasonal", color: "navy", sort_order: 2 },
-  { id: "valentines-day", name: "Valentine's Day", icon: "💝", group_name: "seasonal", color: "gold", sort_order: 3 },
-  { id: "weddings", name: "Weddings", icon: "💍", group_name: "life-events", color: "gold", sort_order: 11 },
-  { id: "birthdays", name: "Birthdays", icon: "🎂", group_name: "personal", color: "gold", sort_order: 19 },
-  { id: "corporate-gifts", name: "Corporate Gifts", icon: "💼", group_name: "corporate", color: "navy", sort_order: 25 },
+/**
+ * 16 categories from the mockup. Order matches the grid layout:
+ *
+ * Row 1: Birthday | Gift Boxes | Hampers    | Flowers
+ * Row 2: Perfumes | FREE GIFTS | Fashion
+ * Row 3: Jewelry  | (FREE GIFTS)| Gadgets
+ * Row 4: Home     | Baby & Kids| Corporate  | Souvenirs
+ * Row 5: Personal | Gift Card  | Food       | Packaging
+ */
+const FALLBACK_CATEGORIES: Category[] = [
+  { id: "birthday-gifts", name: "Birthday Gifts", icon: "🎂", color: "pink", sort_order: 1 },
+  { id: "gift-boxes", name: "Gift Boxes", icon: "🎁", color: "mint", sort_order: 2 },
+  { id: "hampers", name: "Hampers", icon: "🧺", color: "peach", sort_order: 3 },
+  { id: "flowers", name: "Flowers", icon: "💐", color: "pink", sort_order: 4 },
+  { id: "perfumes-beauty", name: "Perfumes & Beauty", icon: "💄", color: "pink", sort_order: 5 },
+  // FREE GIFTS tile inserts here (position 6)
+  { id: "fashion-gifts", name: "Fashion Gifts", icon: "👟", color: "peach", sort_order: 6 },
+  { id: "jewelry-watches", name: "Jewelry & Watches", icon: "⌚", color: "dark-green", sort_order: 7 },
+  { id: "gadgets-electronics", name: "Gadgets & Electronics", icon: "📱", color: "blue", sort_order: 8 },
+  { id: "home-decor", name: "Home & Decor", icon: "🛋️", color: "peach", sort_order: 9 },
+  { id: "baby-kids", name: "Baby & Kids", icon: "🧸", color: "lavender", sort_order: 10 },
+  { id: "corporate-gifts", name: "Corporate Gifts", icon: "📓", color: "mint", sort_order: 11 },
+  { id: "souvenirs", name: "Souvenirs", icon: "🗿", color: "cream", sort_order: 12 },
+  { id: "personalized-gifts", name: "Personalized Gifts", icon: "☕", color: "mint", sort_order: 13 },
+  { id: "gift-cards", name: "Gift Card", icon: "🎟️", color: "mint", sort_order: 14 },
+  { id: "food-treats", name: "Food & Treats", icon: "🍫", color: "cream", sort_order: 15 },
+  { id: "packaging", name: "Packaging", icon: "📦", color: "lavender", sort_order: 16 },
 ];
 
 export function CategoryGrid() {
-  const [occasions, setOccasions] = useState<Occasion[]>(FALLBACK);
+  const [categories, setCategories] = useState<Category[]>(FALLBACK_CATEGORIES);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       const { data, error } = await supabase
-        .from("occasions")
-        .select("id, name, icon, group_name, color, sort_order")
+        .from("categories")
+        .select("id, name, icon, color, sort_order")
         .eq("is_active", true)
         .order("sort_order", { ascending: true });
 
       if (!error && data && data.length > 0) {
-        setOccasions(data as Occasion[]);
+        const reordered = FALLBACK_CATEGORIES.map((fb) => {
+          const db = data.find((d: any) => d.id === fb.id);
+          return {
+            ...fb,
+            name: db?.name ?? fb.name,
+            icon: db?.icon ?? fb.icon,
+            color: db?.color ?? fb.color,
+          };
+        });
+        setCategories(reordered);
       }
       setIsLoading(false);
     })();
@@ -92,65 +94,157 @@ export function CategoryGrid() {
     );
   }
 
-  // Group occasions
-  const grouped = GROUP_ORDER.map((group) => ({
-    group,
-    label: GROUP_LABELS[group],
-    items: occasions.filter((o) => o.group_name === group),
-  })).filter((g) => g.items.length > 0);
+  return (
+    <section className="mx-auto max-w-7xl px-3 pt-4 sm:px-6 sm:pt-6">
+      <div className="grid grid-cols-4 gap-2.5 sm:gap-3">
+        {categories.slice(0, 5).map((cat, index) => (
+          <CategoryCard key={cat.id} category={cat} index={index} />
+        ))}
+
+        {/* FREE GIFTS tile — 2 rows tall */}
+        <FreeGiftsTile />
+
+        {categories.slice(5).map((cat, index) => (
+          <CategoryCard key={cat.id} category={cat} index={index + 6} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/* ============================================================
+   CATEGORY CARD
+   ============================================================ */
+function CategoryCard({
+  category,
+  index,
+}: {
+  category: Category;
+  index: number;
+}) {
+  const bgClass = COLOR_CLASSES[category.color] ?? COLOR_CLASSES.canvas;
+  const isDark = category.color === "dark-green";
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8 px-4 pt-6 sm:px-6 sm:pt-8">
-      {grouped.map((section, sectionIndex) => (
-        <section key={section.group}>
-          {/* Section heading */}
-          <div className="mb-4 flex items-end justify-between gap-3">
-            <div>
-              <h2 className="font-heading text-lg font-bold text-navy-800 sm:text-xl">
-                {section.label.title}
-              </h2>
-              <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
-                {section.label.subtitle}
-              </p>
-            </div>
-            <Link
-              to={`/occasions?group=${section.group}`}
-              className="shrink-0 text-xs font-medium text-gold-600 hover:text-gold-700 hover:underline sm:text-sm"
-            >
-              View all →
-            </Link>
-          </div>
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: Math.min(index * 0.02, 0.3), duration: 0.3 }}
+    >
+      <Link
+        to={`/browse?category=${category.id}`}
+        className="group flex flex-col items-center gap-1.5"
+      >
+        <div
+          className={`relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-2xl ${bgClass} transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-md`}
+        >
+          {category.image_url ? (
+            <img
+              src={category.image_url}
+              alt={category.name}
+              className="h-[85%] w-[85%] object-contain transition-transform duration-300 group-hover:scale-105"
+              loading="lazy"
+            />
+          ) : (
+            <span className="text-4xl transition-transform duration-300 group-hover:scale-110 sm:text-5xl">
+              {category.icon}
+            </span>
+          )}
+        </div>
+        <p
+          className={`line-clamp-2 text-center text-[11px] font-bold leading-tight sm:text-xs ${
+            isDark
+              ? "text-navy-800 group-hover:text-gold-600"
+              : "text-navy-800 group-hover:text-gold-600"
+          }`}
+        >
+          {category.name}
+        </p>
+      </Link>
+    </motion.div>
+  );
+}
 
-          {/* Occasion grid */}
-          <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 sm:gap-3 md:grid-cols-6 lg:grid-cols-8">
-            {section.items.map((occ, index) => (
-              <motion.div
-                key={occ.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  delay: Math.min(sectionIndex * 0.1 + index * 0.02, 0.5),
-                  duration: 0.3,
-                }}
-              >
-                <Link
-                  to={`/occasions/${occ.id}`}
-                  className="group flex flex-col items-center gap-1.5"
-                >
-                  <div
-                    className={`flex aspect-square w-full items-center justify-center rounded-2xl text-2xl transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-md sm:text-3xl ${COLOR_CLASSES[occ.color]}`}
-                  >
-                    <span>{occ.icon}</span>
-                  </div>
-                  <p className="line-clamp-2 text-center text-[10px] font-medium leading-tight text-navy-700 group-hover:text-gold-600 sm:text-xs">
-                    {occ.name}
-                  </p>
-                </Link>
-              </motion.div>
-            ))}
+/* ============================================================
+   FREE GIFTS TILE — pixel-precise to mockup
+   ============================================================ */
+function FreeGiftsTile() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.12, duration: 0.3 }}
+      className="row-span-2"
+    >
+      <Link
+        to="/browse?sort=popular"
+        className="group relative flex h-full w-full flex-col items-center justify-between overflow-hidden rounded-2xl p-3 text-center shadow-md transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg"
+        style={{ backgroundColor: "#F5D547" }}
+      >
+        {/* TOP: Gift box + sparkles */}
+        <div className="relative flex flex-1 items-center justify-center pt-2">
+          <span className="pointer-events-none absolute left-1 top-3 select-none text-xl text-[#0B5B2D]/40">
+            ✦
+          </span>
+          <span className="pointer-events-none absolute right-2 top-1 select-none text-2xl text-white">
+            ✦
+          </span>
+          <span className="pointer-events-none absolute bottom-3 left-3 select-none text-lg text-white/80">
+            ✦
+          </span>
+          <span className="pointer-events-none absolute bottom-4 right-3 select-none text-sm text-[#0B5B2D]/40">
+            ✦
+          </span>
+          <span className="pointer-events-none absolute left-7 top-6 select-none text-xs text-white/90">
+            ✦
+          </span>
+
+          <div className="relative z-10 flex h-[75%] w-[75%] items-center justify-center">
+            <img
+              src="/categories/free-gifts-box.png"
+              alt="Free gifts"
+              className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105"
+              onError={(e) => {
+                const target = e.currentTarget;
+                target.style.display = "none";
+                const emoji = target.nextElementSibling as HTMLElement | null;
+                if (emoji) emoji.style.display = "block";
+              }}
+            />
+            <span
+              className="hidden select-none text-[68px] leading-none drop-shadow-lg"
+              role="img"
+              aria-label="Gift box"
+            >
+              🎁
+            </span>
           </div>
-        </section>
-      ))}
-    </div>
+        </div>
+
+        {/* MIDDLE: FREE GIFTS text */}
+        <div className="relative z-10 -mt-2 space-y-0">
+          <p
+            className="font-heading text-[26px] font-black uppercase leading-[0.85] tracking-tighter sm:text-3xl"
+            style={{ color: "#0B5B2D" }}
+          >
+            FREE
+          </p>
+          <p
+            className="font-heading text-[26px] font-black uppercase leading-[0.85] tracking-tighter sm:text-3xl"
+            style={{ color: "#0B5B2D" }}
+          >
+            GIFTS
+          </p>
+        </div>
+
+        {/* BOTTOM: pill */}
+        <div
+          className="relative z-10 mb-1 mt-2 rounded-full px-3 py-1 text-[10px] font-bold text-white shadow-sm sm:text-[11px]"
+          style={{ backgroundColor: "#0B5B2D" }}
+        >
+          Give. Get. Share.
+        </div>
+      </Link>
+    </motion.div>
   );
 }

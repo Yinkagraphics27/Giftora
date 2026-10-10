@@ -8,14 +8,18 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, ArrowRight, Shield, Truck, CreditCard } from "lucide-react";
-import PaystackPop from "@paystack/inline-js";
-import { initOrderPayment } from "@/integrations/paystack/client";
+import {
+  Loader2,
+  ArrowRight,
+  Shield,
+  Truck,
+  MessageCircle,
+  Info,
+} from "lucide-react";
 
 function formatPrice(n: number) {
   return new Intl.NumberFormat("en-NG", {
@@ -25,7 +29,12 @@ function formatPrice(n: number) {
   }).format(n);
 }
 
-type PaymentMethod = "cod" | "paystack";
+interface VendorInfo {
+  id: string;
+  business_name: string;
+  whatsapp: string | null;
+  items: typeof items;
+}
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -33,7 +42,8 @@ const Checkout = () => {
   const { user } = useAuth();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cod");
+  const [vendors, setVendors] = useState<VendorInfo[]>([]);
+  const [isLoadingVendors, setIsLoadingVendors] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
@@ -45,72 +55,46 @@ const Checkout = () => {
     notes: "",
   });
 
-  // Prefill email if logged in
   useEffect(() => {
     if (user?.email && !form.email) {
       setForm((f) => ({ ...f, email: user.email! }));
     }
   }, [user]);
 
-  const shippingFee = 0; // free for now
+  // Fetch vendor info for WhatsApp buttons
+  useEffect(() => {
+    (async () => {
+      if (items.length === 0) return;
+      setIsLoadingVendors(true);
+
+      const vendorIds = Array.from(new Set(items.map((i) => i.product.vendor_id)));
+
+      const { data } = await supabase
+        .from("vendor_profiles")
+        .select("id, business_name, whatsapp")
+        .in("id", vendorIds);
+
+      if (data) {
+        const vendorList: VendorInfo[] = (data as any[]).map((v) => ({
+          id: v.id,
+          business_name: v.business_name,
+          whatsapp: v.whatsapp,
+          items: items.filter((i) => i.product.vendor_id === v.id),
+        }));
+        setVendors(vendorList);
+      }
+
+      setIsLoadingVendors(false);
+    })();
+  }, [items]);
+
+  const shippingFee = 0;
   const total = subtotal + shippingFee;
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  /**
-   * Create the order + order items in Supabase.
-   * Returns the new order ID.
-   */
-  const createOrder = async (
-    paymentRef?: string,
-    paymentStatus: "unpaid" | "paid" = "unpaid"
-  ) => {
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .insert({
-        user_id: user?.id ?? null,
-        status: "pending",
-        payment_method: paymentMethod,
-        payment_status: paymentStatus,
-        subtotal,
-        shipping_fee: shippingFee,
-        total,
-        buyer_email: form.email,
-        buyer_name: form.name,
-        buyer_phone: form.phone,
-        delivery_address: form.address,
-        delivery_city: form.city,
-        delivery_country: form.country,
-        delivery_notes: form.notes || null,
-        payment_ref: paymentRef ?? null,
-      })
-      .select("id")
-      .single();
-
-    if (orderError || !order) throw orderError ?? new Error("Order failed");
-
-    const orderItems = items.map((i) => ({
-      order_id: order.id,
-      product_id: i.product.id,
-      vendor_id: i.product.vendor_id,
-      product_name: i.product.name,
-      product_image: i.product.image_url,
-      quantity: i.quantity,
-      unit_price: i.product.price,
-      line_total: i.product.price * i.quantity,
-    }));
-
-    const { error: itemsError } = await supabase
-      .from("order_items")
-      .insert(orderItems);
-
-    if (itemsError) throw itemsError;
-
-    return order.id;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -121,7 +105,6 @@ const Checkout = () => {
       return;
     }
 
-    // Validate required fields
     const required = ["name", "email", "phone", "address", "city", "country"];
     for (const field of required) {
       if (!form[field as keyof typeof form]?.trim()) {
@@ -133,59 +116,57 @@ const Checkout = () => {
     setIsSubmitting(true);
 
     try {
-      if (paymentMethod === "cod") {
-        // ============ CASH ON DELIVERY ============
-        const orderId = await createOrder();
-        await clearCart();
-        toast.success("Order placed!");
-        navigate(`/order/${orderId}`);
-      } else {
-        // ============ CARD PAYMENT (PAYSTACK) ============
+      // 1. Create order
+      const { data: order, error: orderError } = await supabase
+        .from("orders")
+        .insert({
+          user_id: user?.id ?? null,
+          status: "pending",
+          payment_method: "cod",
+          payment_status: "unpaid",
+          subtotal,
+          shipping_fee: shippingFee,
+          total,
+          buyer_email: form.email,
+          buyer_name: form.name,
+          buyer_phone: form.phone,
+          delivery_address: form.address,
+          delivery_city: form.city,
+          delivery_country: form.country,
+          delivery_notes: form.notes || null,
+        })
+        .select("id")
+        .single();
 
-        // 1. Create order first (as pending + unpaid)
-        const orderId = await createOrder();
+      if (orderError || !order) throw orderError ?? new Error("Order failed");
 
-        // 2. Initialize Paystack via Supabase Edge Function
-        //    (server-side verifies amount, prevents tampering)
-        const { access_code } = await initOrderPayment({
-          orderId,
-          email: form.email,
-          amount: total,
-        });
+      // 2. Create order items
+      const orderItems = items.map((i) => ({
+        order_id: order.id,
+        product_id: i.product.id,
+        vendor_id: i.product.vendor_id,
+        product_name: i.product.name,
+        product_image: i.product.image_url,
+        quantity: i.quantity,
+        unit_price: i.product.price,
+        line_total: i.product.price * i.quantity,
+      }));
 
-        // 3. Open Paystack popup
-        const paystack = new PaystackPop();
-        paystack.resumeTransaction(access_code, {
-          onSuccess: async (transaction: any) => {
-            // Webhook will mark as paid asynchronously.
-            // Optimistically update UI here.
-            await clearCart();
-            toast.success("Payment successful!", {
-              description: `Reference: ${transaction.reference}`,
-            });
-            navigate(`/order/${orderId}`);
-          },
-          onCancel: () => {
-            toast.error("Payment cancelled", {
-              description:
-                "Your order was saved. You can retry payment from My Orders.",
-            });
-            setIsSubmitting(false);
-            navigate(`/order/${orderId}`);
-          },
-          onError: (error: any) => {
-            console.error("Paystack error:", error);
-            toast.error(error?.message ?? "Payment failed", {
-              description:
-                "Your order was saved. You can retry payment from My Orders.",
-            });
-            setIsSubmitting(false);
-          },
-        });
-      }
+      const { error: itemsError } = await supabase
+        .from("order_items")
+        .insert(orderItems);
+
+      if (itemsError) throw itemsError;
+
+      // 3. Clear cart
+      await clearCart();
+
+      toast.success("Order placed!");
+      navigate(`/order/${order.id}`);
     } catch (err: any) {
       console.error(err);
       toast.error(err.message ?? "Could not place order");
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -230,6 +211,7 @@ const Checkout = () => {
           >
             {/* LEFT — Form */}
             <div className="space-y-6">
+              {/* Contact */}
               <Card className="border-canvas-200 bg-white">
                 <CardContent className="space-y-4 p-6">
                   <h2 className="font-heading text-lg font-bold text-navy-800">
@@ -245,6 +227,7 @@ const Checkout = () => {
                         onChange={handleChange}
                         placeholder="John Doe"
                         required
+                        disabled={isSubmitting}
                       />
                     </div>
                     <div>
@@ -256,6 +239,7 @@ const Checkout = () => {
                         onChange={handleChange}
                         placeholder="+234 801 234 5678"
                         required
+                        disabled={isSubmitting}
                       />
                     </div>
                   </div>
@@ -269,11 +253,13 @@ const Checkout = () => {
                       onChange={handleChange}
                       placeholder="you@example.com"
                       required
+                      disabled={isSubmitting}
                     />
                   </div>
                 </CardContent>
               </Card>
 
+              {/* Delivery */}
               <Card className="border-canvas-200 bg-white">
                 <CardContent className="space-y-4 p-6">
                   <h2 className="font-heading text-lg font-bold text-navy-800">
@@ -288,6 +274,7 @@ const Checkout = () => {
                       onChange={handleChange}
                       placeholder="123 Main Street, Apartment 4"
                       required
+                      disabled={isSubmitting}
                     />
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
@@ -300,6 +287,7 @@ const Checkout = () => {
                         onChange={handleChange}
                         placeholder="Lagos"
                         required
+                        disabled={isSubmitting}
                       />
                     </div>
                     <div>
@@ -310,6 +298,7 @@ const Checkout = () => {
                         value={form.country}
                         onChange={handleChange}
                         required
+                        disabled={isSubmitting}
                       />
                     </div>
                   </div>
@@ -322,75 +311,91 @@ const Checkout = () => {
                       onChange={handleChange}
                       placeholder="Any special instructions for delivery"
                       rows={3}
+                      disabled={isSubmitting}
                     />
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="border-canvas-200 bg-white">
-                <CardContent className="space-y-4 p-6">
-                  <h2 className="font-heading text-lg font-bold text-navy-800">
-                    Payment Method
-                  </h2>
-                  <RadioGroup
-                    value={paymentMethod}
-                    onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}
-                    className="space-y-3"
-                  >
-                    {/* CARD PAYMENT — PRIMARY */}
-                    <label
-                      htmlFor="paystack"
-                      className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition ${
-                        paymentMethod === "paystack"
-                          ? "border-gold-500 bg-gold-100/40"
-                          : "border-canvas-200 hover:border-canvas-300"
-                      }`}
-                    >
-                      <RadioGroupItem
-                        value="paystack"
-                        id="paystack"
-                        className="mt-1"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <CreditCard className="h-4 w-4 text-gold-600" />
-                          <p className="font-semibold text-navy-800">
-                            Card Payment
-                          </p>
-                          <span className="rounded-full bg-gold-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gold-700">
-                            Instant
-                          </span>
-                        </div>
-                        <p className="mt-0.5 text-sm text-muted-foreground">
-                          Pay securely with your debit or credit card. Powered
-                          by Paystack.
-                        </p>
-                      </div>
-                    </label>
-
-                    {/* COD — SECONDARY */}
-                    <label
-                      htmlFor="cod"
-                      className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition ${
-                        paymentMethod === "cod"
-                          ? "border-gold-500 bg-gold-100/40"
-                          : "border-canvas-200 hover:border-canvas-300"
-                      }`}
-                    >
-                      <RadioGroupItem value="cod" id="cod" className="mt-1" />
-                      <div>
-                        <p className="font-semibold text-navy-800">
-                          Pay on Delivery / WhatsApp
-                        </p>
-                        <p className="mt-0.5 text-sm text-muted-foreground">
-                          Arrange payment with the vendor directly after your
-                          order is confirmed.
-                        </p>
-                      </div>
-                    </label>
-                  </RadioGroup>
+              {/* How It Works */}
+              <Card className="border-gold-300 bg-gold-100/40">
+                <CardContent className="p-5">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-navy-800">
+                      <Info className="h-4 w-4 text-gold-500" />
+                    </div>
+                    <div>
+                      <p className="font-heading font-semibold text-navy-800">
+                        How it works
+                      </p>
+                      <p className="mt-1 text-sm leading-relaxed text-navy-600">
+                        After you place your order, the vendor will contact you
+                        directly to arrange payment and delivery. No card needed.
+                      </p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
+
+              {/* Chat with Vendors */}
+              {!isLoadingVendors && vendors.length > 0 && (
+                <Card className="border-canvas-200 bg-white">
+                  <CardContent className="space-y-3 p-6">
+                    <h2 className="font-heading text-lg font-bold text-navy-800">
+                      Chat with Your {vendors.length === 1 ? "Vendor" : "Vendors"}
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                      You can also reach out directly to arrange details before
+                      placing your order.
+                    </p>
+                    <div className="space-y-2">
+                      {vendors.map((v) => (
+                        <div
+                          key={v.id}
+                          className="flex items-center justify-between gap-3 rounded-lg border border-canvas-200 bg-canvas-50 p-3"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-navy-800">
+                              {v.business_name}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {v.items.length} item{v.items.length === 1 ? "" : "s"} from this vendor
+                            </p>
+                          </div>
+                          {v.whatsapp ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="shrink-0 gap-1.5 border-green-600/50 bg-transparent text-green-700 hover:border-green-600 hover:bg-green-600 hover:text-white"
+                              onClick={() => {
+                                const clean = v.whatsapp!.replace(/[^\d]/g, "");
+                                const msg = encodeURIComponent(
+                                  `Hi ${v.business_name}! I'm interested in ordering ${v.items
+                                    .map((i) => `"${i.product.name}" (x${i.quantity})`)
+                                    .join(", ")} from Giftora.`
+                                );
+                                window.open(
+                                  `https://wa.me/${clean}?text=${msg}`,
+                                  "_blank",
+                                  "noopener,noreferrer"
+                                );
+                              }}
+                            >
+                              <MessageCircle className="h-3.5 w-3.5" />
+                              Chat
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              No WhatsApp
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
 
             {/* RIGHT — Summary */}
@@ -404,10 +409,7 @@ const Checkout = () => {
 
                   <div className="max-h-64 space-y-3 overflow-y-auto">
                     {items.map((i) => (
-                      <div
-                        key={i.product.id}
-                        className="flex items-start gap-3"
-                      >
+                      <div key={i.product.id} className="flex items-start gap-3">
                         <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md border border-canvas-200 bg-canvas-100">
                           {i.product.image_url ? (
                             <img
@@ -474,23 +476,12 @@ const Checkout = () => {
                     {isSubmitting ? (
                       <>
                         <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                        {paymentMethod === "paystack"
-                          ? "Opening Payment..."
-                          : "Placing Order..."}
+                        Placing Order...
                       </>
                     ) : (
                       <>
-                        {paymentMethod === "paystack" ? (
-                          <>
-                            <CreditCard className="mr-2 h-5 w-5" />
-                            Pay {formatPrice(total)}
-                          </>
-                        ) : (
-                          <>
-                            Place Order
-                            <ArrowRight className="ml-2 h-5 w-5" />
-                          </>
-                        )}
+                        Place Order
+                        <ArrowRight className="ml-2 h-5 w-5" />
                       </>
                     )}
                   </Button>
@@ -498,9 +489,7 @@ const Checkout = () => {
                   <div className="flex items-center justify-center gap-4 pt-2 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Shield className="h-3.5 w-3.5 text-gold-500" />
-                      {paymentMethod === "paystack"
-                        ? "Secured by Paystack"
-                        : "No card needed"}
+                      Secure
                     </span>
                     <span className="flex items-center gap-1">
                       <Truck className="h-3.5 w-3.5 text-gold-500" />

@@ -6,15 +6,14 @@ import {
   Search,
   ShoppingBag,
   ChevronDown,
-  Menu,
-  X,
+  User,
 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 
 const NAV_LINKS = [
   { name: "Home", path: "/" },
   { name: "Browse Gifts", path: "/browse" },
-  { name: "Categories", path: "/categories" },
+  { name: "Categories", path: "/browse" },
   { name: "Find Vendors", path: "/vendors" },
 ];
 
@@ -23,7 +22,6 @@ export function MobileHeader() {
   const location = useLocation();
   const { itemCount } = useCart();
   const [query, setQuery] = useState("");
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,11 +30,10 @@ export function MobileHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-navy-800">
-      {/* ============ DESKTOP LAYOUT (md+) ============ */}
+    <header className="sticky top-0 z-40 w-full bg-navy-800 shadow-md">
+      {/* ============ DESKTOP (md+) ============ */}
       <div className="hidden md:block">
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-6">
-          {/* Logo */}
           <Link to="/" className="flex shrink-0 items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gold-500 shadow-sm">
               <Gift className="h-5 w-5 text-navy-900" />
@@ -51,7 +48,6 @@ export function MobileHeader() {
             </div>
           </Link>
 
-          {/* Location */}
           <button
             type="button"
             className="hidden items-center gap-1 rounded-full border border-navy-600 bg-navy-700/70 px-3 py-1.5 text-xs text-canvas-50 transition-colors hover:bg-navy-600 lg:flex"
@@ -61,7 +57,6 @@ export function MobileHeader() {
             <ChevronDown className="h-3 w-3 text-canvas-200/70" />
           </button>
 
-          {/* Search (expanded on desktop) */}
           <form onSubmit={handleSearch} className="flex-1">
             <div className="relative mx-auto max-w-2xl">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-navy-400" />
@@ -75,7 +70,6 @@ export function MobileHeader() {
             </div>
           </form>
 
-          {/* Nav links */}
           <nav className="hidden items-center gap-1 lg:flex">
             {NAV_LINKS.slice(1).map((link) => (
               <Link
@@ -92,10 +86,17 @@ export function MobileHeader() {
             ))}
           </nav>
 
-          {/* Cart */}
+          <Link
+            to="/account"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-navy-600 bg-navy-700/70 transition-colors hover:bg-navy-600"
+            aria-label="Account"
+          >
+            <User className="h-4 w-4 text-canvas-50" />
+          </Link>
+
           <Link
             to="/cart"
-            className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-navy-600 bg-navy-700/70 backdrop-blur-sm transition-colors hover:bg-navy-600"
+            className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-navy-600 bg-navy-700/70 transition-colors hover:bg-navy-600"
             aria-label={`Cart, ${itemCount} items`}
           >
             <ShoppingBag className="h-4 w-4 text-canvas-50" />
@@ -105,32 +106,12 @@ export function MobileHeader() {
               </span>
             )}
           </Link>
-
-          {/* Account */}
-          <Link
-            to="/account"
-            className="flex h-10 shrink-0 items-center gap-2 rounded-full border border-navy-600 bg-navy-700/70 px-3 text-xs font-medium text-canvas-50 transition-colors hover:bg-navy-600"
-          >
-            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gold-500 text-navy-900">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                className="h-3.5 w-3.5"
-                stroke="currentColor"
-                strokeWidth="2.5"
-              >
-                <circle cx="12" cy="8" r="4" />
-                <path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
-              </svg>
-            </div>
-            <span className="hidden xl:inline">Account</span>
-          </Link>
         </div>
       </div>
 
-      {/* ============ MOBILE LAYOUT (< md) ============ */}
+      {/* ============ MOBILE (< md) ============ */}
       <div className="md:hidden">
-        {/* Top row */}
+        {/* Top row — logo | location | account | cart */}
         <div className="flex items-center justify-between gap-2 px-4 pt-3 pb-2">
           <Link to="/" className="flex min-w-0 items-center gap-2">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gold-500 shadow-sm">
@@ -147,15 +128,26 @@ export function MobileHeader() {
           </Link>
 
           <div className="flex items-center gap-1.5">
+            {/* Location */}
             <button
               type="button"
-              className="flex max-w-[100px] items-center gap-1 rounded-full border border-navy-600 bg-navy-700/70 px-2.5 py-1.5 text-xs text-canvas-50 backdrop-blur-sm"
+              className="flex items-center gap-1 rounded-full border border-navy-600 bg-navy-700/70 px-2.5 py-1.5 text-xs text-canvas-50 backdrop-blur-sm"
             >
               <MapPin className="h-3 w-3 shrink-0 text-gold-400" />
               <span className="truncate">Lagos</span>
               <ChevronDown className="h-3 w-3 shrink-0 text-canvas-200/70" />
             </button>
 
+            {/* Account */}
+            <Link
+              to="/account"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-navy-600 bg-navy-700/70 backdrop-blur-sm"
+              aria-label="Account"
+            >
+              <User className="h-4 w-4 text-canvas-50" />
+            </Link>
+
+            {/* Cart */}
             <Link
               to="/cart"
               className="relative flex h-9 w-9 items-center justify-center rounded-full border border-navy-600 bg-navy-700/70 backdrop-blur-sm"
@@ -171,7 +163,7 @@ export function MobileHeader() {
           </div>
         </div>
 
-        {/* Search */}
+        {/* Search row */}
         <form onSubmit={handleSearch} className="px-4 pb-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-navy-400" />

@@ -4,7 +4,7 @@ import { Gift, MapPin, Mail, Phone } from "lucide-react";
 const footerLinks = {
   marketplace: [
     { name: "Browse Gifts", path: "/vendors" },
-    { name: "Categories", path: "/categories" },
+    { name: "Categories", path: "/browse" },
     { name: "Featured Vendors", path: "/vendors" },
   ],
   vendors: [

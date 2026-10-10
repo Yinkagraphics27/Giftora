@@ -3,37 +3,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { X, ChevronDown } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
-interface Occasion {
+interface Category {
   id: string;
   name: string;
   icon: string;
-  group_name: string;
 }
 
-const GROUP_LABELS: Record<string, string> = {
-  seasonal: "Seasonal",
-  "life-events": "Life Events",
-  personal: "Personal",
-  corporate: "Corporate",
-  cultural: "Cultural",
-  other: "Other",
-};
-
-const GROUP_ORDER = [
-  "seasonal",
-  "life-events",
-  "personal",
-  "corporate",
-  "cultural",
-  "other",
-];
-
 interface FilterSidebarProps {
-  selectedOccasion: string;
-  onOccasionChange: (occasionId: string) => void;
+  selectedCategory: string;
+  onCategoryChange: (categoryId: string) => void;
   minPrice: string;
   maxPrice: string;
   onMinPriceChange: (value: string) => void;
@@ -43,8 +24,8 @@ interface FilterSidebarProps {
 }
 
 export function FilterSidebar({
-  selectedOccasion,
-  onOccasionChange,
+  selectedCategory,
+  onCategoryChange,
   minPrice,
   maxPrice,
   onMinPriceChange,
@@ -52,30 +33,20 @@ export function FilterSidebar({
   onReset,
   hasActiveFilters,
 }: FilterSidebarProps) {
-  const [occasions, setOccasions] = useState<Occasion[]>([]);
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
-    new Set(["seasonal", "life-events"])
-  );
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       const { data } = await supabase
-        .from("occasions")
-        .select("id, name, icon, group_name")
+        .from("categories")
+        .select("id, name, icon")
         .eq("is_active", true)
         .order("sort_order", { ascending: true });
-      if (data) setOccasions(data as Occasion[]);
+      if (data) setCategories(data as Category[]);
+      setIsLoading(false);
     })();
   }, []);
-
-  const toggleGroup = (group: string) => {
-    setExpandedGroups((prev) => {
-      const next = new Set(prev);
-      if (next.has(group)) next.delete(group);
-      else next.add(group);
-      return next;
-    });
-  };
 
   return (
     <aside className="space-y-6">
@@ -97,94 +68,50 @@ export function FilterSidebar({
         )}
       </div>
 
-      {/* Selected occasion chip */}
-      {selectedOccasion !== "all" && (
-        <div className="flex items-center justify-between gap-2 rounded-lg border border-gold-300 bg-gold-100/60 px-3 py-2">
-          <span className="truncate text-sm font-medium text-gold-700">
-            {occasions.find((o) => o.id === selectedOccasion)?.icon}{" "}
-            {occasions.find((o) => o.id === selectedOccasion)?.name ??
-              selectedOccasion}
-          </span>
-          <button
-            type="button"
-            onClick={() => onOccasionChange("all")}
-            className="shrink-0 rounded-full p-0.5 hover:bg-gold-300/50"
-            aria-label="Remove occasion filter"
-          >
-            <X className="h-3.5 w-3.5 text-gold-700" />
-          </button>
-        </div>
-      )}
-
-      {/* Occasion groups */}
+      {/* Category */}
       <div>
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-navy-500">
-          Occasion
+          Category
         </h3>
 
-        <button
-          type="button"
-          onClick={() => onOccasionChange("all")}
-          className={`mb-2 flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${
-            selectedOccasion === "all"
-              ? "bg-gold-100 font-semibold text-gold-700 ring-1 ring-gold-300"
-              : "text-navy-600 hover:bg-canvas-100"
-          }`}
-        >
-          <span>All Occasions</span>
-        </button>
+        {isLoading ? (
+          <div className="flex justify-center py-4">
+            <Loader2 className="h-4 w-4 animate-spin text-gold-500" />
+          </div>
+        ) : (
+          <div className="space-y-0.5">
+            <button
+              type="button"
+              onClick={() => onCategoryChange("all")}
+              className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${
+                selectedCategory === "all"
+                  ? "bg-gold-100 font-semibold text-gold-700 ring-1 ring-gold-300"
+                  : "text-navy-600 hover:bg-canvas-100"
+              }`}
+            >
+              <span>All Categories</span>
+            </button>
 
-        {GROUP_ORDER.map((group) => {
-          const items = occasions.filter((o) => o.group_name === group);
-          if (items.length === 0) return null;
-
-          const expanded = expandedGroups.has(group);
-          const hasSelected = items.some((i) => i.id === selectedOccasion);
-
-          return (
-            <div key={group} className="mb-1">
-              <button
-                type="button"
-                onClick={() => toggleGroup(group)}
-                className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                  hasSelected
-                    ? "text-gold-700"
-                    : "text-navy-700 hover:bg-canvas-100"
-                }`}
-              >
-                <span>{GROUP_LABELS[group]}</span>
-                <ChevronDown
-                  className={`h-3.5 w-3.5 shrink-0 transition-transform ${
-                    expanded ? "rotate-180" : ""
+            {categories.map((cat) => {
+              const active = selectedCategory === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => onCategoryChange(cat.id)}
+                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${
+                    active
+                      ? "bg-gold-100 font-semibold text-gold-700 ring-1 ring-gold-300"
+                      : "text-navy-600 hover:bg-canvas-100"
                   }`}
-                />
-              </button>
-
-              {expanded && (
-                <div className="ml-2 space-y-0.5 border-l border-canvas-200 pl-2">
-                  {items.map((occ) => {
-                    const active = selectedOccasion === occ.id;
-                    return (
-                      <button
-                        key={occ.id}
-                        type="button"
-                        onClick={() => onOccasionChange(occ.id)}
-                        className={`flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-colors ${
-                          active
-                            ? "bg-gold-100 font-semibold text-gold-700"
-                            : "text-navy-600 hover:bg-canvas-100"
-                        }`}
-                      >
-                        <span className="text-base">{occ.icon}</span>
-                        <span className="truncate">{occ.name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
+                >
+                  <span className="text-base">{cat.icon}</span>
+                  <span className="truncate text-left">{cat.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <Separator className="bg-canvas-200" />
@@ -228,7 +155,6 @@ export function FilterSidebar({
           </div>
         </div>
 
-        {/* Quick chips */}
         <div className="mt-3 flex flex-wrap gap-1.5">
           {[
             { label: "Under ₦10k", min: "", max: "10000" },

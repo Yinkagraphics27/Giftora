@@ -7,7 +7,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, CheckCircle2, Package, MapPin, Clock } from "lucide-react";
+import {
+  Loader2,
+  CheckCircle2,
+  Package,
+  MapPin,
+  Clock,
+  MessageCircle,
+  Wallet,
+} from "lucide-react";
 
 function formatPrice(n: number) {
   return new Intl.NumberFormat("en-NG", {
@@ -100,6 +108,8 @@ const OrderConfirmation = () => {
     );
   }
 
+  const isPaid = order.payment_status === "paid";
+
   return (
     <div className="flex min-h-screen flex-col bg-canvas-50">
       <Header />
@@ -123,15 +133,23 @@ const OrderConfirmation = () => {
                   {order.id.slice(0, 8).toUpperCase()}
                 </span>
               </span>
-              <Badge
-                variant="outline"
-                className="gap-1 rounded-full border-gold-300 bg-gold-100 text-gold-600"
-              >
-                <Clock className="h-3 w-3" />
-                {order.status === "pending"
-                  ? "Awaiting Confirmation"
-                  : order.status}
-              </Badge>
+              {isPaid ? (
+                <Badge
+                  variant="outline"
+                  className="gap-1 rounded-full border-emerald-200 bg-emerald-100 text-emerald-700"
+                >
+                  <CheckCircle2 className="h-3 w-3" />
+                  Paid
+                </Badge>
+              ) : (
+                <Badge
+                  variant="outline"
+                  className="gap-1 rounded-full border-canvas-300 bg-canvas-100 text-navy-600"
+                >
+                  <Wallet className="h-3 w-3" />
+                  Payment on Delivery
+                </Badge>
+              )}
             </div>
           </div>
 
@@ -232,24 +250,46 @@ const OrderConfirmation = () => {
 
               <Separator className="bg-canvas-200" />
 
+              {/* What happens next */}
               <div className="rounded-lg border border-gold-500/30 bg-gold-100/40 p-4 text-sm">
                 <p className="font-semibold text-navy-800">
                   What happens next?
                 </p>
-                <p className="mt-1 text-muted-foreground">
-                  The vendor will contact you on{" "}
-                  <span className="font-medium text-navy-800">
-                    {order.buyer_phone}
-                  </span>{" "}
-                  to arrange payment and delivery. You'll find this order in{" "}
-                  <Link
-                    to="/my-orders"
-                    className="font-medium text-gold-600 hover:underline"
-                  >
-                    My Orders
-                  </Link>
-                  .
-                </p>
+                <ul className="mt-2 space-y-1.5 text-muted-foreground">
+                  <li className="flex items-start gap-2">
+                    <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-gold-500" />
+                    <span>
+                      The vendor will contact you on{" "}
+                      <span className="font-medium text-navy-800">
+                        {order.buyer_phone}
+                      </span>{" "}
+                      to confirm your order.
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-gold-500" />
+                    <span>
+                      You'll arrange{" "}
+                      <span className="font-medium text-navy-800">
+                        payment on delivery
+                      </span>{" "}
+                      directly with the vendor.
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-gold-500" />
+                    <span>
+                      Track this order anytime in{" "}
+                      <Link
+                        to="/my-orders"
+                        className="font-medium text-gold-600 hover:underline"
+                      >
+                        My Orders
+                      </Link>
+                      .
+                    </span>
+                  </li>
+                </ul>
               </div>
 
               <div className="flex flex-col gap-3 pt-2 sm:flex-row">

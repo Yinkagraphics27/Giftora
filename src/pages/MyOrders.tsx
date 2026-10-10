@@ -19,6 +19,7 @@ import {
   Truck,
   XCircle,
   Star,
+  Wallet,
 } from "lucide-react";
 
 function formatPrice(n: number) {
@@ -70,11 +71,6 @@ const STATUS_CONFIG: Record<
     label: "Confirmed",
     icon: CheckCircle2,
     className: "bg-blue-100 text-blue-700 border-blue-200",
-  },
-  paid: {
-    label: "Paid",
-    icon: CheckCircle2,
-    className: "bg-emerald-100 text-emerald-700 border-emerald-200",
   },
   shipped: {
     label: "Shipped",
@@ -208,6 +204,7 @@ const MyOrders = () => {
                 const statusCfg =
                   STATUS_CONFIG[order.status] ?? STATUS_CONFIG.pending;
                 const StatusIcon = statusCfg.icon;
+                const isPaid = order.payment_status === "paid";
 
                 return (
                   <Card
@@ -217,7 +214,7 @@ const MyOrders = () => {
                     <CardContent className="p-5">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <span className="font-mono text-sm font-semibold text-navy-800">
                               #{order.id.slice(0, 8).toUpperCase()}
                             </span>
@@ -228,8 +225,25 @@ const MyOrders = () => {
                               <StatusIcon className="h-3 w-3" />
                               {statusCfg.label}
                             </Badge>
+                            {isPaid ? (
+                              <Badge
+                                variant="outline"
+                                className="gap-1 rounded-full border-emerald-200 bg-emerald-100 text-emerald-700"
+                              >
+                                <CheckCircle2 className="h-3 w-3" />
+                                Paid
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="outline"
+                                className="gap-1 rounded-full border-canvas-300 bg-canvas-100 text-navy-600"
+                              >
+                                <Wallet className="h-3 w-3" />
+                                Payment on Delivery
+                              </Badge>
+                            )}
                           </div>
-                          <p className="mt-1 text-xs text-muted-foreground">
+                          <p className="mt-1.5 text-xs text-muted-foreground">
                             Placed {formatDate(order.created_at)}
                           </p>
                         </div>
@@ -284,7 +298,7 @@ const MyOrders = () => {
                         </Button>
                       </div>
 
-                      {/* Review buttons — only on delivered orders */}
+                      {/* Review buttons */}
                       {order.status === "delivered" &&
                         (order.order_items?.length ?? 0) > 0 && (
                           <div className="mt-4 border-t border-canvas-200 pt-4">

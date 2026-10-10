@@ -10,7 +10,7 @@ interface Tab {
 
 const TABS: Tab[] = [
   { to: "/", label: "Home", icon: Home, matchExact: true },
-  { to: "/categories", label: "Categories", icon: LayoutGrid },
+  { to: "/browse", label: "Categories", icon: LayoutGrid },
   { to: "/wishlist", label: "Wishlist", icon: Heart },
   { to: "/messages", label: "Messages", icon: MessageCircle },
   { to: "/account", label: "Account", icon: User },

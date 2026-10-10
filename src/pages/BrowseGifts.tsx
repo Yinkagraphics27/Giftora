@@ -4,7 +4,6 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Sheet,
@@ -25,11 +24,10 @@ interface Product {
   vendor_id: string;
   name: string;
   description: string | null;
-  category: string;
+  category: string | null;
   price: number;
   image_url?: string | null;
   created_at: string;
-  occasions: string[];
   vendor_profiles?: { business_name: string; city: string | null } | null;
 }
 
@@ -39,7 +37,7 @@ interface ReviewStats {
   avg_rating: number;
 }
 
-interface OccasionLookup {
+interface CategoryLookup {
   id: string;
   name: string;
   icon: string;
@@ -49,12 +47,12 @@ const BrowseGifts = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [reviewStats, setReviewStats] = useState<Record<string, ReviewStats>>({});
-  const [occasionLookup, setOccasionLookup] = useState<Record<string, OccasionLookup>>({});
+  const [categoryLookup, setCategoryLookup] = useState<Record<string, CategoryLookup>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   const searchQuery = searchParams.get("search") || "";
-  const selectedOccasion = searchParams.get("occasion") || "all";
+  const selectedCategory = searchParams.get("category") || "all";
   const sortBy = (searchParams.get("sort") as SortOption) || "newest";
   const minPrice = searchParams.get("min") || "";
   const maxPrice = searchParams.get("max") || "";
@@ -65,14 +63,14 @@ const BrowseGifts = () => {
 
   const fetchData = async () => {
     setIsLoading(true);
-    const [productsRes, reviewsRes, occasionsRes] = await Promise.all([
+    const [productsRes, reviewsRes, categoriesRes] = await Promise.all([
       supabase
         .from("products")
         .select("*, vendor_profiles(business_name, city)")
         .eq("is_active", true)
         .order("created_at", { ascending: false }),
       supabase.from("reviews").select("product_id, rating"),
-      supabase.from("occasions").select("id, name, icon").eq("is_active", true),
+      supabase.from("categories").select("id, name, icon").eq("is_active", true),
     ]);
 
     if (productsRes.error) {
@@ -85,7 +83,11 @@ const BrowseGifts = () => {
       const stats: Record<string, ReviewStats> = {};
       for (const r of reviewsRes.data as { product_id: string; rating: number }[]) {
         if (!stats[r.product_id]) {
-          stats[r.product_id] = { product_id: r.product_id, review_count: 0, avg_rating: 0 };
+          stats[r.product_id] = {
+            product_id: r.product_id,
+            review_count: 0,
+            avg_rating: 0,
+          };
         }
         stats[r.product_id].review_count += 1;
         stats[r.product_id].avg_rating += r.rating;
@@ -96,12 +98,12 @@ const BrowseGifts = () => {
       setReviewStats(stats);
     }
 
-    if (!occasionsRes.error && occasionsRes.data) {
-      const lookup: Record<string, OccasionLookup> = {};
-      for (const o of occasionsRes.data as OccasionLookup[]) {
-        lookup[o.id] = o;
+    if (!categoriesRes.error && categoriesRes.data) {
+      const lookup: Record<string, CategoryLookup> = {};
+      for (const c of categoriesRes.data as CategoryLookup[]) {
+        lookup[c.id] = c;
       }
-      setOccasionLookup(lookup);
+      setCategoryLookup(lookup);
     }
 
     setIsLoading(false);
@@ -118,7 +120,7 @@ const BrowseGifts = () => {
   };
 
   const handleSearchChange = (v: string) => updateParam("search", v);
-  const handleOccasionChange = (v: string) => updateParam("occasion", v);
+  const handleCategoryChange = (v: string) => updateParam("category", v);
   const handleSortChange = (v: SortOption) => updateParam("sort", v);
   const handleMinPriceChange = (v: string) => updateParam("min", v);
   const handleMaxPriceChange = (v: string) => updateParam("max", v);
@@ -129,18 +131,19 @@ const BrowseGifts = () => {
       const matchesSearch =
         !searchQuery ||
         product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (product.description || "").toLowerCase().includes(searchQuery.toLowerCase());
+        (product.description || "")
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase());
 
-      const matchesOccasion =
-        selectedOccasion === "all" ||
-        (product.occasions || []).includes(selectedOccasion);
+      const matchesCategory =
+        selectedCategory === "all" || product.category === selectedCategory;
 
       const min = minPrice ? Number(minPrice) : 0;
       const max = maxPrice ? Number(maxPrice) : Infinity;
       const price = Number(product.price);
       const matchesPrice = price >= min && price <= max;
 
-      return matchesSearch && matchesOccasion && matchesPrice;
+      return matchesSearch && matchesCategory && matchesPrice;
     });
 
     list = [...list].sort((a, b) => {
@@ -153,18 +156,31 @@ const BrowseGifts = () => {
           const aCount = reviewStats[a.id]?.review_count ?? 0;
           const bCount = reviewStats[b.id]?.review_count ?? 0;
           if (bCount !== aCount) return bCount - aCount;
-          return (reviewStats[b.id]?.avg_rating ?? 0) - (reviewStats[a.id]?.avg_rating ?? 0);
+          return (
+            (reviewStats[b.id]?.avg_rating ?? 0) -
+            (reviewStats[a.id]?.avg_rating ?? 0)
+          );
         }
         case "name-asc":
           return a.name.localeCompare(b.name);
         case "newest":
         default:
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          return (
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
       }
     });
 
     return list;
-  }, [products, searchQuery, selectedOccasion, sortBy, minPrice, maxPrice, reviewStats]);
+  }, [
+    products,
+    searchQuery,
+    selectedCategory,
+    sortBy,
+    minPrice,
+    maxPrice,
+    reviewStats,
+  ]);
 
   const formatPrice = (price: number) =>
     new Intl.NumberFormat("en-NG", {
@@ -175,14 +191,14 @@ const BrowseGifts = () => {
 
   const hasActiveFilters =
     !!searchQuery ||
-    selectedOccasion !== "all" ||
+    selectedCategory !== "all" ||
     sortBy !== "newest" ||
     !!minPrice ||
     !!maxPrice;
 
   const sidebarProps = {
-    selectedOccasion,
-    onOccasionChange: handleOccasionChange,
+    selectedCategory,
+    onCategoryChange: handleCategoryChange,
     minPrice,
     maxPrice,
     onMinPriceChange: handleMinPriceChange,
@@ -206,7 +222,8 @@ const BrowseGifts = () => {
                 Discover Perfect <span className="text-gold-500">Gifts</span>
               </h1>
               <p className="mt-4 text-canvas-100/80 md:text-lg">
-                Browse our curated collection of premium gifts from trusted vendors
+                Browse our curated collection of premium gifts from trusted
+                vendors
               </p>
             </motion.div>
 
@@ -241,7 +258,10 @@ const BrowseGifts = () => {
 
               <div>
                 <div className="mb-6 flex items-center justify-between gap-3">
-                  <Sheet open={showMobileFilters} onOpenChange={setShowMobileFilters}>
+                  <Sheet
+                    open={showMobileFilters}
+                    onOpenChange={setShowMobileFilters}
+                  >
                     <SheetTrigger asChild>
                       <Button
                         variant="outline"
@@ -284,16 +304,19 @@ const BrowseGifts = () => {
                 {hasActiveFilters && (
                   <div className="mb-4 flex flex-wrap items-center gap-2">
                     {searchQuery && (
-                      <Chip label={`Search: "${searchQuery}"`} onRemove={() => handleSearchChange("")} />
+                      <Chip
+                        label={`Search: "${searchQuery}"`}
+                        onRemove={() => handleSearchChange("")}
+                      />
                     )}
-                    {selectedOccasion !== "all" && (
+                    {selectedCategory !== "all" && (
                       <Chip
                         label={
-                          occasionLookup[selectedOccasion]
-                            ? `${occasionLookup[selectedOccasion].icon} ${occasionLookup[selectedOccasion].name}`
-                            : selectedOccasion
+                          categoryLookup[selectedCategory]
+                            ? `${categoryLookup[selectedCategory].icon} ${categoryLookup[selectedCategory].name}`
+                            : selectedCategory
                         }
-                        onRemove={() => handleOccasionChange("all")}
+                        onRemove={() => handleCategoryChange("all")}
                       />
                     )}
                     {(minPrice || maxPrice) && (
@@ -329,7 +352,11 @@ const BrowseGifts = () => {
                     <p className="text-lg text-muted-foreground">
                       No gifts found matching your criteria
                     </p>
-                    <Button variant="gold" onClick={resetFilters} className="mt-4">
+                    <Button
+                      variant="gold"
+                      onClick={resetFilters}
+                      className="mt-4"
+                    >
                       Clear Filters
                     </Button>
                   </div>
@@ -387,7 +414,9 @@ const ProductCard = ({
                 className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
             ) : (
-              <div className="flex h-full items-center justify-center text-4xl">🎁</div>
+              <div className="flex h-full items-center justify-center text-4xl">
+                🎁
+              </div>
             )}
           </div>
           <CardContent className="p-4">
@@ -412,7 +441,8 @@ const ProductCard = ({
             {product.vendor_profiles && (
               <p className="mt-2 truncate text-sm text-muted-foreground">
                 {product.vendor_profiles.business_name}
-                {product.vendor_profiles.city && ` • ${product.vendor_profiles.city}`}
+                {product.vendor_profiles.city &&
+                  ` • ${product.vendor_profiles.city}`}
               </p>
             )}
           </CardContent>
